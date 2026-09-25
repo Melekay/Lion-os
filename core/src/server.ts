@@ -10,6 +10,8 @@ import { letzteEintraege, protokolliere } from "./audit.js";
 import type { Datenbank } from "./datenbank.js";
 import { BoxName, ladeEinstellungen, speichereBoxName } from "./einstellungen.js";
 import { type HintergrundFoto, istJpeg, MAX_FOTO_BYTES } from "./hintergrund.js";
+import { type Helfer, HelferAblehnung, HelferNichtErreichbar } from "./helfer-client.js";
+import { istUuid, uuidAusZiel } from "./helfer/datentraeger.js";
 import { hashePasswort, passwortRegelVerletzt, pruefePasswort } from "./passwort.js";
 import { AnmeldeSperre } from "./sperre.js";
 import {
@@ -41,6 +43,8 @@ export type ServerOptionen = {
   einrichtungsCode?: string;
   /** Eigenes Hintergrundfoto (fehlt es, gibt es die Funktion nicht). */
   hintergrund?: HintergrundFoto;
+  /** lion-helper (root-Dienst mit festen Aktionen), z. B. für USB-Datenträger. */
+  helfer?: Helfer;
 };
 
 declare module "fastify" {
@@ -247,6 +251,52 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
       hintergrundFoto: fotoVersion === null ? null : `/api/hintergrund?v=${fotoVersion}`,
     };
   });
+
+  // ---- Datenträger (über lion-helper) ---------------------------------------
+  const helfer = opt.helfer;
+  if (helfer) {
+    const helferFehler = async (reply: FastifyReply, arbeit: () => Promise<unknown>) => {
+      try {
+        return await arbeit();
+      } catch (e) {
+        if (e instanceof HelferNichtErreichbar) return reply.code(503).send({ fehler: e.message });
+        if (e instanceof HelferAblehnung) return reply.code(409).send({ fehler: e.message });
+        throw e;
+      }
+    };
+    const uuidAus = (body: unknown) => {
+      const uuid = (body as { uuid?: unknown } | undefined)?.uuid;
+      return istUuid(uuid) ? uuid : null;
+    };
+
+    app.get("/api/datentraeger", { preHandler: benoetigtAnmeldung }, (_req, reply) =>
+      helferFehler(reply, async () => ({ datentraeger: await helfer.datentraeger() })),
+    );
+
+    app.post("/api/datentraeger/einhaengen", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
+      const uuid = uuidAus(req.body);
+      if (!uuid) return reply.code(400).send({ fehler: "Unbekannter Datenträger." });
+      return helferFehler(reply, async () => {
+        const r = await helfer.einhaengen(uuid);
+        protokolliere(db, { benutzer: req.benutzer?.name, aktion: "datentraeger.einhaengen", ziel: uuid, ergebnis: "erfolg", details: r.einhaengepunkt });
+        return r;
+      });
+    });
+
+    app.post("/api/datentraeger/aushaengen", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
+      const uuid = uuidAus(req.body);
+      if (!uuid) return reply.code(400).send({ fehler: "Unbekannter Datenträger." });
+      const b = opt.backup?.status();
+      if (b?.laeuft && b.ziel && uuidAusZiel(b.ziel) === uuid) {
+        return reply.code(409).send({ fehler: "Auf diesen Datenträger wird gerade gesichert. Bitte warte, bis das Backup fertig ist." });
+      }
+      return helferFehler(reply, async () => {
+        const r = await helfer.aushaengen(uuid);
+        protokolliere(db, { benutzer: req.benutzer?.name, aktion: "datentraeger.aushaengen", ziel: uuid, ergebnis: "erfolg" });
+        return r;
+      });
+    });
+  }
 
   // ---- Eigenes Hintergrundfoto --------------------------------------------
   const hintergrund = opt.hintergrund;

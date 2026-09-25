@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test";
-import type { AppAnsicht, AuditEintrag, BackupLauf, BackupStatus, Sicherung, SitzungsAnsicht, Systemstatus } from "../../lib/typen";
+import type { AppAnsicht, Datentraeger, AuditEintrag, BackupLauf, BackupStatus, Sicherung, SitzungsAnsicht, Systemstatus } from "../../lib/typen";
 
 /**
  * Nachgebildetes lion-core im Browser: So lassen sich Zustände prüfen, die mit echtem Docker
@@ -74,6 +74,10 @@ export class Attrappe {
 
   ressourcen: Record<string, { cpuProzent: number; ramMb: number }> = {};
   foto: Buffer | null = null;
+  /** null = lion-helper läuft nicht (503) */
+  datentraeger: Datentraeger[] | null = [
+    { uuid: "ABCD-1234", name: "WD Elements", groesseBytes: 2_000_398_934_016, dateisystem: "ext4", geraet: "/dev/sda1", eingehaengt: null, backupOrdner: "/media/lion/ABCD-1234/lion-backup" },
+  ];
   fotoVersion = 0;
 
   appProtokolle: Record<string, string[]> = {
@@ -203,7 +207,7 @@ export class Attrappe {
       return this.json(route, 200, this.backup);
     }
     if (pfad === "/api/backup/einrichten") {
-      if (!String(body?.ziel ?? "").startsWith("/mnt/")) return this.json(route, 400, { fehler: "Backups sind nur in Unterordnern von /mnt oder /media erlaubt." });
+      if (!/^\/(mnt|media)\//.test(String(body?.ziel ?? ""))) return this.json(route, 400, { fehler: "Backups sind nur in Unterordnern von /mnt oder /media erlaubt." });
       const neu = !this.backup.eingerichtet;
       this.backup = { ...this.backup, eingerichtet: true, ziel: body.ziel, zeit: body.zeit, naechster: new Date(Date.now() + 3_600_000).toISOString() };
       return this.json(route, 200, { schluesselNeu: neu ? this.backupSchluessel : null, status: this.backup });
@@ -235,6 +239,19 @@ export class Attrappe {
       return this.json(route, 200, { apps: this.apps });
     }
 
+    if (pfad === "/api/datentraeger") {
+      return this.datentraeger ? this.json(route, 200, { datentraeger: this.datentraeger }) : this.json(route, 503, { fehler: "lion-helper läuft nicht." });
+    }
+    if (pfad === "/api/datentraeger/einhaengen" || pfad === "/api/datentraeger/aushaengen") {
+      const d = this.datentraeger?.find((x) => x.uuid === body?.uuid);
+      if (!d) return this.json(route, 409, { fehler: "Diesen Datenträger gibt es nicht (mehr)." });
+      if (pfad.endsWith("aushaengen")) {
+        d.eingehaengt = null;
+        return this.json(route, 200, { ok: true });
+      }
+      d.eingehaengt = `/media/lion/${d.uuid}`;
+      return this.json(route, 200, { einhaengepunkt: d.eingehaengt, backupOrdner: d.backupOrdner });
+    }
     if (pfad === "/api/hintergrund" && methode === "POST") {
       const daten = req.postDataBuffer();
       if (!daten || daten[0] !== 0xff || daten[1] !== 0xd8 || daten[2] !== 0xff) return this.json(route, 415, { fehler: "Bitte ein Foto als JPEG senden." });

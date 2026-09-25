@@ -543,6 +543,42 @@ test.describe("Backup", () => {
     expect(api.anfragen.filter((a) => a.pfad === "/api/backup/einrichten").at(-1)?.body).toEqual({ ziel: "/mnt/usb-backup", zeit: "02:30" });
   });
 
+  test("USB-Festplatte auswählen: wird eingehängt, Ordner ausgefüllt, Backup eingerichtet; danach sicher entfernen", async ({ page }) => {
+    await page.goto("/backup/");
+    const platten = page.getByRole("region", { name: "Angeschlossene USB-Festplatten" });
+    await expect(platten).toContainText("WD Elements");
+    await expect(platten).toContainText("2,0 TB · ext4 · nicht eingehängt");
+    await barrierefrei(page);
+
+    await platten.getByRole("button", { name: "Verwenden" }).click();
+    await expect(page.getByLabel("Ordner auf der Backup-Festplatte")).toHaveValue("/media/lion/ABCD-1234/lion-backup");
+    await expect(platten).toContainText("Ausgewählt");
+    const ein = api.anfragen.find((a) => a.pfad === "/api/datentraeger/einhaengen");
+    expect(ein?.csrf).toBe("1");
+    expect(ein?.body).toEqual({ uuid: "ABCD-1234" });
+
+    await page.getByRole("button", { name: "Backup einrichten" }).click();
+    await page.getByLabel(/sicher notiert/).check();
+    await page.getByRole("button", { name: "Weiter" }).click();
+    await page.getByRole("button", { name: "Festplatte sicher entfernen" }).click();
+    await expect(page.getByText("Du kannst die Festplatte jetzt abziehen")).toBeVisible();
+    expect(api.anfragen.find((a) => a.pfad === "/api/datentraeger/aushaengen")?.body).toEqual({ uuid: "ABCD-1234" });
+  });
+
+  test("ohne lion-helper: Hinweis, Ordner lässt sich weiter von Hand eintragen", async ({ page }) => {
+    api.datentraeger = null;
+    await page.goto("/backup/");
+    await expect(page.getByText("USB-Festplatten werden hier nicht erkannt")).toBeVisible();
+    await page.getByLabel("Ordner auf der Backup-Festplatte").fill("/mnt/usb");
+    await expect(page.getByRole("button", { name: "Backup einrichten" })).toBeEnabled();
+  });
+
+  test("keine Festplatte angeschlossen: klare Anleitung", async ({ page }) => {
+    api.datentraeger = [];
+    await page.goto("/backup/");
+    await expect(page.getByText("Keine USB-Festplatte gefunden.")).toBeVisible();
+  });
+
   test("Jetzt sichern: läuft, dann gesichert und in der Liste", async ({ page }) => {
     api.backup = { ...api.backup, eingerichtet: true, ziel: "/mnt/usb" };
     await page.goto("/backup/");

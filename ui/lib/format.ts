@@ -129,6 +129,8 @@ const AKTIONEN: Record<string, string> = {
   "app.entfernen": "App entfernen",
   "hintergrund.hochladen": "Hintergrundfoto hochladen",
   "hintergrund.entfernen": "Hintergrundfoto entfernen",
+  "datentraeger.einhaengen": "Datenträger einhängen",
+  "datentraeger.aushaengen": "Datenträger aushängen",
 };
 
 export function aktionText(aktion: string): string {

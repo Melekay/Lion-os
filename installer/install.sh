@@ -47,6 +47,7 @@ pfad_env() { printf '%s/lion.env' "$(pfad_etc)"; }
 pfad_core() { printf '%s/core' "$(pfad_opt)"; }
 pfad_unit() { printf '%s/etc/systemd/system/lion.service' "$LION_ROOT"; }
 pfad_core_unit() { printf '%s/etc/systemd/system/lion-core.service' "$LION_ROOT"; }
+pfad_helper_unit() { printf '%s/etc/systemd/system/lion-helper.service' "$LION_ROOT"; }
 # Wurzel des Repositorys, aus dem der Installer gestartet wurde.
 pfad_repo() { (cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd); }
 
@@ -610,8 +611,8 @@ render_core_unit() {
 [Unit]
 Description=Lion OS – lion-core (API)
 Requires=docker.service
-Wants=lion.service
-After=docker.service lion.service network-online.target
+Wants=lion.service lion-helper.service
+After=docker.service lion.service lion-helper.service network-online.target
 
 [Service]
 Type=simple
@@ -654,14 +655,57 @@ WantedBy=multi-user.target
 EOF
 }
 
+# lion-helper: einziger Dienst mit root-Rechten, nur feste Aktionen (USB-Datenträger ein-/aushängen).
+# Bewusst OHNE Mount-Namespace-Sandbox (ProtectSystem, PrivateTmp, …): Einhängungen müssen im ganzen
+# System sichtbar sein, sonst sähen Docker und lion-core die Platte nicht. Stattdessen: nur CAP_SYS_ADMIN,
+# kein Netzwerk, Socket nur für Gruppe „lion“.
+render_helper_unit() {
+  cat <<EOF
+[Unit]
+Description=Lion OS – lion-helper (feste Systemaktionen)
+After=local-fs.target
+
+[Service]
+Type=simple
+User=root
+Group=lion
+Environment=NODE_ENV=production
+Environment=LION_HELPER_SOCKET=/run/lion-helper/helfer.sock
+WorkingDirectory=/opt/lion/core
+ExecStart=${LION_NODE} dist/helfer/index.js
+RuntimeDirectory=lion-helper
+RuntimeDirectoryMode=0750
+UMask=0007
+Restart=on-failure
+RestartSec=5
+
+# Sandbox ohne eigenen Mount-Namespace
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_SYS_ADMIN
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
 richte_dienst_ein() {
   render_unit | schreibe_datei "$(pfad_unit)" 0644
   render_core_unit | schreibe_datei "$(pfad_core_unit)" 0644
+  render_helper_unit | schreibe_datei "$(pfad_helper_unit)" 0644
   ausfuehren systemctl daemon-reload
-  ausfuehren systemctl enable lion.service lion-core.service
+  ausfuehren systemctl enable lion.service lion-helper.service lion-core.service
   ausfuehren systemctl restart lion.service
+  ausfuehren systemctl restart lion-helper.service
   ausfuehren systemctl restart lion-core.service
-  ok "Dienste „lion“ und „lion-core“ eingerichtet und gestartet."
+  ok "Dienste „lion“, „lion-helper“ und „lion-core“ eingerichtet und gestartet."
 }
 
 warte_auf_start() {

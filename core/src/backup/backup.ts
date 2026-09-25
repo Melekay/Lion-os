@@ -32,6 +32,8 @@ export type BackupOptionen = {
     arbeit: string; // /var/lib/lion/backup (Schlüssel, Datenbank-Abzug)
   };
   pruefeZiel: (pfad: string) => Promise<string>;
+  /** Vor jedem Zugriff aufs Ziel: z. B. eine USB-Platte nach einem Neustart wieder einhängen (lion-helper). */
+  zielBereitstellen?: (ziel: string) => Promise<void>;
   jetzt?: () => Date;
 };
 
@@ -256,6 +258,7 @@ export class BackupVerwaltung {
       const lauf = this.starteLauf("sicherung");
       const angehalten: string[] = [];
       try {
+        await this.o.zielBereitstellen?.(ziel);
         // Konsistenter Abzug der eigenen Datenbank (SQLite ist geöffnet).
         const dbOrdner = join(this.o.pfade.arbeit, "datenbank");
         await mkdir(dbOrdner, { recursive: true, mode: 0o700 });
@@ -308,6 +311,7 @@ export class BackupVerwaltung {
   async sicherungen(): Promise<Sicherung[]> {
     const ziel = this.ziel;
     if (!ziel) return [];
+    await this.o.zielBereitstellen?.(ziel);
     const json = await this.o.restic.restic([...this.resticBasis(), "snapshots", "--json", "--tag", "lion"], this.repoMounts(ziel), "lesen");
     return werteSicherungenAus(json);
   }
@@ -333,6 +337,7 @@ export class BackupVerwaltung {
       let angelegt = false;
       const lief = this.o.apps.laufendeApps().includes(app);
       try {
+        await this.o.zielBereitstellen?.(ziel);
         if (lief) await this.o.apps.anhalten(app);
         try {
           await rename(daten, beiseite);

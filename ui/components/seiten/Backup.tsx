@@ -1,11 +1,12 @@
 "use client";
 
-import { Archive, CalendarClock, Check, Copy, History, KeyRound, ShieldCheck } from "lucide-react";
+import { Archive, CalendarClock, Check, Copy, HardDrive, History, KeyRound, RefreshCw, ShieldCheck, Usb } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useAbfrage } from "@/lib/abfrage";
-import { lion } from "@/lib/api";
+import { ApiFehler, lion } from "@/lib/api";
 import { backupZustand, groesse, wannText } from "@/lib/backup";
 import { useJetzt } from "@/lib/browser";
+import { groesseText, uuidAusZiel } from "@/lib/datentraeger";
 import { zeitpunkt } from "@/lib/format";
 import type { AppAnsicht, BackupStatus, Sicherung } from "@/lib/typen";
 import { Feld, Hinweis, Knopf, Lader, SeitenKopf, StatusPille } from "../ui";
@@ -77,6 +78,86 @@ function SchluesselKarte({ schluessel, onFertig }: { schluessel: string; onFerti
   );
 }
 
+/** USB-Datenträger zur Auswahl (über lion-helper). Ohne Helper bleibt die Eingabe von Hand. */
+function UsbAuswahl({ gewaehlt, onGewaehlt }: { gewaehlt: string; onGewaehlt: (ordner: string) => void }) {
+  const liste = useAbfrage(lion.datentraeger, 10_000);
+  const [sendet, setSendet] = useState<string | null>(null);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const titelId = useId();
+
+  if (liste.fehler && !liste.daten) {
+    return (
+      <Hinweis titel="USB-Festplatten werden hier nicht erkannt" rolle="note">
+        Dafür braucht Lion OS den Dienst lion-helper ({liste.fehler}). Einen bereits eingehängten Ordner kannst du unten von Hand eintragen.
+      </Hinweis>
+    );
+  }
+  const platten = liste.daten?.datentraeger ?? [];
+  return (
+    <section aria-labelledby={titelId} className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 id={titelId} className="text-sm font-semibold">
+          Angeschlossene USB-Festplatten
+        </h3>
+        <Knopf art="leise" className="min-h-9 px-2.5 text-xs" onClick={() => void liste.neuLaden()}>
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> Neu suchen
+        </Knopf>
+      </div>
+      {!liste.daten && <Lader text="Suche Datenträger …" />}
+      {liste.daten && platten.length === 0 && (
+        <p className="rounded-feld border border-dashed border-linie-hell p-4 text-sm text-gedaempft">
+          Keine USB-Festplatte gefunden. Schließe eine an – sie erscheint hier nach ein paar Sekunden.
+        </p>
+      )}
+      {platten.length > 0 && (
+        <ul className="space-y-2">
+          {platten.map((d) => {
+            const aktiv = gewaehlt === d.backupOrdner;
+            return (
+              <li key={d.uuid} className={`flex flex-wrap items-center gap-3 rounded-feld border p-3 ${aktiv ? "border-gold bg-gold/[0.06]" : "border-linie bg-flaeche-2"}`}>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-linear-to-br from-sky-400 to-blue-700 text-white" aria-hidden="true">
+                  <HardDrive className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="truncate font-semibold">{d.name}</p>
+                  <p className="text-xs text-gedaempft">
+                    {groesseText(d.groesseBytes)} · {d.dateisystem} · {d.eingehaengt ? "eingehängt" : "nicht eingehängt"}
+                  </p>
+                </div>
+                {aktiv ? (
+                  <StatusPille ton="gruen">Ausgewählt</StatusPille>
+                ) : (
+                  <Knopf
+                    art="rahmen"
+                    laedt={sendet === d.uuid}
+                    disabled={sendet !== null}
+                    onClick={async () => {
+                      setSendet(d.uuid);
+                      setFehler(null);
+                      try {
+                        const r = await lion.datentraegerEinhaengen(d.uuid);
+                        onGewaehlt(r.backupOrdner);
+                        void liste.neuLaden();
+                      } catch (e) {
+                        setFehler(e instanceof Error ? e.message : "Einhängen fehlgeschlagen.");
+                      } finally {
+                        setSendet(null);
+                      }
+                    }}
+                  >
+                    <Usb className="h-4 w-4" aria-hidden="true" /> Verwenden
+                  </Knopf>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {fehler && <Hinweis ton="rot">{fehler}</Hinweis>}
+    </section>
+  );
+}
+
 function Einrichten({ vorher, onFertig }: { vorher: BackupStatus; onFertig: (schluessel: string | null) => void }) {
   const [ziel, setZiel] = useState(vorher.ziel ?? "");
   const [zeit, setZeit] = useState(vorher.zeit);
@@ -85,10 +166,13 @@ function Einrichten({ vorher, onFertig }: { vorher: BackupStatus; onFertig: (sch
   return (
     <Abschnitt titel={vorher.eingerichtet ? "Ziel ändern" : "Backup einrichten"} icon={Archive} text="Tägliche, verschlüsselte Sicherung auf eine zweite Festplatte.">
       <ol className="mb-5 list-decimal space-y-1.5 pl-5 text-sm text-text/90">
-        <li>Zweite Festplatte (z. B. USB) anschließen und auf dem Server einhängen, etwa unter <code className="text-akzent">/mnt/usb-backup</code>.</li>
-        <li>Ordner und Uhrzeit eintragen.</li>
+        <li>Zweite Festplatte per USB anschließen und unten auf „Verwenden“ tippen.</li>
+        <li>Uhrzeit wählen.</li>
         <li>Den Wiederherstellungsschlüssel aufschreiben.</li>
       </ol>
+      <div className="mb-5">
+        <UsbAuswahl gewaehlt={ziel} onGewaehlt={setZiel} />
+      </div>
       <form
         className="space-y-4"
         onSubmit={async (e) => {
@@ -114,7 +198,7 @@ function Einrichten({ vorher, onFertig }: { vorher: BackupStatus; onFertig: (sch
           className="font-mono"
           value={ziel}
           onChange={(e) => setZiel(e.target.value)}
-          hilfe="Muss unter /mnt oder /media liegen und auf einer anderen Festplatte als deine Daten."
+          hilfe="Wird bei „Verwenden“ automatisch ausgefüllt. Von Hand: unter /mnt oder /media, auf einer anderen Festplatte als deine Daten."
         />
         <Feld id="zeit" label="Tägliche Uhrzeit" type="time" value={zeit} onChange={(e) => setZeit(e.target.value)} hilfe="Am besten nachts – die Apps werden kurz angehalten." />
         {fehler && <Hinweis ton="rot">{fehler}</Hinweis>}
@@ -126,11 +210,47 @@ function Einrichten({ vorher, onFertig }: { vorher: BackupStatus; onFertig: (sch
   );
 }
 
+function SicherEntfernen({ uuid, gesperrt }: { uuid: string; gesperrt: boolean }) {
+  const [zustand, setZustand] = useState<"bereit" | "laeuft" | "fertig">("bereit");
+  const [fehler, setFehler] = useState<string | null>(null);
+  if (zustand === "fertig") {
+    return (
+      <Hinweis ton="gruen" titel="Du kannst die Festplatte jetzt abziehen">
+        Vor dem nächsten Backup hängt Lion OS sie automatisch wieder ein – sie muss dann nur angeschlossen sein.
+      </Hinweis>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <Knopf
+        art="rahmen"
+        laedt={zustand === "laeuft"}
+        disabled={gesperrt}
+        onClick={async () => {
+          setZustand("laeuft");
+          setFehler(null);
+          try {
+            await lion.datentraegerAushaengen(uuid);
+            setZustand("fertig");
+          } catch (e) {
+            setFehler(e instanceof ApiFehler || e instanceof Error ? e.message : "Aushängen fehlgeschlagen.");
+            setZustand("bereit");
+          }
+        }}
+      >
+        <Usb className="h-4 w-4" aria-hidden="true" /> Festplatte sicher entfernen
+      </Knopf>
+      {fehler && <Hinweis ton="rot">{fehler}</Hinweis>}
+    </div>
+  );
+}
+
 function Status({ s, onJetzt }: { s: BackupStatus; onJetzt: () => void }) {
   const jetzt = useJetzt();
   const z = backupZustand(s, jetzt ?? 0);
   const [fehler, setFehler] = useState<string | null>(null);
   const [sendet, setSendet] = useState(false);
+  const usb = uuidAusZiel(s.ziel);
   return (
     <Abschnitt titel="Status" icon={ShieldCheck}>
       <div className="space-y-4">
@@ -178,6 +298,7 @@ function Status({ s, onJetzt }: { s: BackupStatus; onJetzt: () => void }) {
           </Knopf>
           <p className="text-xs text-gedaempft">Laufende Apps werden währenddessen kurz angehalten.</p>
         </div>
+        {usb && <SicherEntfernen uuid={usb} gesperrt={s.laeuft !== null} />}
       </div>
     </Abschnitt>
   );

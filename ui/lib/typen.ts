@@ -103,3 +103,14 @@ export type Sicherung = { id: string; kurz: string; zeit: string; pfade: string[
 
 /** Live-Verbrauch einer laufenden App. CPU in % der ganzen Maschine, RAM in MB. */
 export type AppRessourcen = { cpuProzent: number; ramMb: number };
+
+/** Externer Datenträger (von lion-helper erkannt). */
+export type Datentraeger = {
+  uuid: string;
+  name: string;
+  groesseBytes: number;
+  dateisystem: string;
+  geraet: string;
+  eingehaengt: string | null;
+  backupOrdner: string;
+};

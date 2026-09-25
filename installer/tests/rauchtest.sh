@@ -71,6 +71,17 @@ einrichtungscode="$(sudo sed -n 's/^LION_SETUP_CODE=//p' /etc/lion/lion.env)"
 code="$(post /api/setup "{\"name\":\"admin\",\"passwort\":\"$PASSWORT\",\"code\":\"$einrichtungscode\"}")"
 [[ "$code" == "201" ]] || fehler "Einrichtung erwartet 201, bekommen $code."
 
+schritt "lion-helper läuft, Socket nur für root und Gruppe lion"
+sudo systemctl is-active --quiet lion-helper || fehler "lion-helper läuft nicht."
+rechte="$(sudo stat -c '%a %U %G' /run/lion-helper/helfer.sock)"
+[[ "$rechte" == "660 root lion" ]] || fehler "Socket-Rechte erwartet „660 root lion“, bekommen „$rechte“."
+# lion-helper führt als root Code aus /opt/lion/core aus – lion darf dort nichts ändern.
+if sudo -u lion test -w /opt/lion/core/dist/helfer/index.js || sudo -u lion test -w /opt/lion/core/dist/helfer; then
+  fehler "lion darf den Code von lion-helper ändern – das wäre ein Weg zu root."
+fi
+code="$(curl -sk -o /dev/null -w '%{http_code}' -b "$KEKSE" "$BASIS/api/datentraeger")"
+[[ "$code" == "200" ]] || fehler "/api/datentraeger erwartet 200, bekommen $code."
+
 schritt "$APP installieren (lädt das Image, kann dauern)"
 code="$(post "/api/apps/$APP/installieren" '{}')"
 [[ "$code" == "202" ]] || fehler "Installation erwartet 202, bekommen $code."
