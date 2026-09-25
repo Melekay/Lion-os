@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useAbfrage } from "@/lib/abfrage";
 import { lion } from "@/lib/api";
-import { besteAdresse, beschaeftigt, statusAnzeige, type Ton } from "@/lib/apps";
+import { besteAdresse, beschaeftigt, type LiveAnzeige, liveAnzeige, statusAnzeige, type Ton } from "@/lib/apps";
 import { backupZustand } from "@/lib/backup";
 import { useHostname, useJetzt } from "@/lib/browser";
 import { LEERER_VERLAUF, neuerVerlauf } from "@/lib/netz";
@@ -23,7 +23,7 @@ const PUNKT: Record<Ton, string> = {
 };
 
 const KACHEL =
-  "group relative flex aspect-square flex-col items-center justify-center gap-3 rounded-karte border border-glas bg-flaeche/70 p-3 text-center shadow-karte backdrop-blur-md transition hover:-translate-y-0.5 hover:border-gold/40 hover:bg-flaeche-2/90 focus-visible:-translate-y-0.5";
+  "group relative flex h-full min-h-38 flex-col items-center justify-center gap-3 rounded-karte border border-glas bg-flaeche/70 p-3 text-center shadow-karte backdrop-blur-md transition hover:-translate-y-0.5 hover:border-gold/40 hover:bg-flaeche-2/90 focus-visible:-translate-y-0.5";
 
 function Kachel({ href, extern, children, label }: { href: string; extern?: boolean; children: React.ReactNode; label: string }) {
   if (extern) {
@@ -40,18 +40,42 @@ function Kachel({ href, extern, children, label }: { href: string; extern?: bool
   );
 }
 
-function AppKachel({ app, hostname }: { app: AppAnsicht; hostname: string }) {
+/** Mini-Balken für Live-Werte in der Kachel (rein optisch – die Werte stehen im Namen der Kachel). */
+function MiniWert({ name, text, anteil, farbe }: { name: string; text: string; anteil: number; farbe: string }) {
+  return (
+    <span className="block w-full">
+      <span className="flex items-baseline justify-between gap-2 text-[11px] leading-4">
+        <span className="font-semibold uppercase tracking-wider text-gedaempft">{name}</span>
+        <span className="font-semibold tabular-nums">{text}</span>
+      </span>
+      <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-flaeche-3">
+        <span className={`block h-full rounded-full bg-linear-to-r transition-[width] duration-700 ${farbe}`} style={{ width: `${Math.max(anteil * 100, 3)}%` }} />
+      </span>
+    </span>
+  );
+}
+
+function AppKachel({ app, hostname, live }: { app: AppAnsicht; hostname: string; live: LiveAnzeige | null }) {
   const st = statusAnzeige(app);
-  const adresse = app.installiert?.status === "laeuft" ? besteAdresse(app.installiert.adressen, hostname) : null;
+  const laeuft = app.installiert?.status === "laeuft";
+  const adresse = laeuft ? besteAdresse(app.installiert!.adressen, hostname) : null;
+  const werte = laeuft ? live : null;
+  const name = werte ? `${app.name} (${werte.satz})` : app.name;
   return (
     <li>
       <Kachel
         href={adresse ?? `/apps/#${app.id}`}
         extern={Boolean(adresse)}
-        label={adresse ? app.name : `${app.name} – ${st.text}, im App Store verwalten`}
+        label={adresse ? name : `${name} – ${st.text}, im App Store verwalten`}
       >
-        <AppSymbol id={app.id} kategorie={app.kategorie} logo={app.logo} />
+        <AppSymbol id={app.id} kategorie={app.kategorie} logo={app.logo} groesse={werte ? "klein" : "gross"} />
         <span className="line-clamp-2 text-sm font-semibold">{app.name}</span>
+        {werte && (
+          <span className="block w-full space-y-1.5 px-1" aria-hidden="true">
+            <MiniWert name="RAM" text={werte.ramText} anteil={werte.ramAnteil} farbe="from-emerald-400 to-cyan-400" />
+            <MiniWert name="CPU" text={werte.cpuText} anteil={werte.cpuAnteil} farbe="from-fuchsia-400 to-violet-400" />
+          </span>
+        )}
         <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${PUNKT[st.ton]}`} title={st.text} aria-hidden="true" />
       </Kachel>
     </li>
@@ -66,6 +90,8 @@ export function Startseite() {
     return { s, verlauf: verlauf.current };
   }, 5_000);
   const apps = useAbfrage(lion.apps, (d) => (d && beschaeftigt(d.apps) ? 2_000 : 15_000));
+  // Live-Werte der laufenden Apps (lion-core fragt Docker höchstens alle 10 s).
+  const live = useAbfrage(lion.appRessourcen, 10_000);
   const protokoll = useAbfrage(() => lion.protokoll(3), 30_000);
   const backup = useAbfrage(lion.backup, (d) => (d?.laeuft ? 5_000 : 60_000));
   const jetzt = useJetzt();
@@ -140,7 +166,7 @@ export function Startseite() {
             </li>
           )}
           {sichtbar.map((a) => (
-            <AppKachel key={a.id} app={a} hostname={hostname} />
+            <AppKachel key={a.id} app={a} hostname={hostname} live={liveAnzeige(live.daten?.apps[a.id], system.daten?.s.ramGesamtMb)} />
           ))}
           {passt("Backup") && (
             <li>

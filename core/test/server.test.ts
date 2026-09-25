@@ -223,4 +223,13 @@ describe("App-Routen", () => {
     const liste = (await app.inject({ url: "/api/apps", headers: { cookie } })).json().apps as { id: string; logo: string | null }[];
     expect(liste.find((a) => a.id === "jellyfin")?.logo).toBe("/api/apps/jellyfin/logo");
   });
+
+  it("liefert Live-Werte der Apps nur angemeldet", async () => {
+    const { app } = await testServerMitApps();
+    const { cookie } = await einrichten(app);
+    expect((await app.inject({ url: "/api/apps/ressourcen" })).statusCode).toBe(401);
+    const res = await app.inject({ url: "/api/apps/ressourcen", headers: { cookie } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().apps["uptime-kuma"].ramMb).toBe(96);
+  });
 });

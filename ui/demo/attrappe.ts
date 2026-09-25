@@ -194,6 +194,20 @@ export class DemoApi {
     });
   }
 
+  /** Plausible, leicht schwankende Live-Werte für laufende Apps. */
+  private ressourcen(): Record<string, { cpuProzent: number; ramMb: number }> {
+    const ergebnis: Record<string, { cpuProzent: number; ramMb: number }> = {};
+    for (const [id, a] of Object.entries(this.z.installiert)) {
+      if (a.status !== "laeuft") continue;
+      const basis = katalog.find((k) => k.id === id)?.ramMinMb ?? 256;
+      ergebnis[id] = {
+        ramMb: Math.round(basis * 0.35 * (0.9 + Math.random() * 0.2)),
+        cpuProzent: Math.round((0.3 + Math.random() * (basis >= 2048 ? 12 : 4)) * 10) / 10,
+      };
+    }
+    return ergebnis;
+  }
+
   private appProtokoll(id: string): string[] {
     const zeit = (s: number) => new Date(Date.now() - s * 1000).toISOString();
     const zeilen = [
@@ -261,6 +275,7 @@ export class DemoApi {
 
     // ---- Apps
     if (pfad === "/api/apps") return antwort(200, { apps: this.apps() });
+    if (pfad === "/api/apps/ressourcen") return antwort(200, { apps: this.ressourcen() });
     const appPfad = pfad.match(/^\/api\/apps\/([^/]+)\/([a-z]+)$/);
     if (appPfad) {
       const id = decodeURIComponent(appPfad[1]!);

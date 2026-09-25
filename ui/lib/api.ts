@@ -1,4 +1,4 @@
-import type { AppAnsicht, AuditEintrag, BackupStatus, EinstellungenAntwort, SetupStatus, Sicherung, SitzungsAnsicht, Systemstatus } from "./typen";
+import type { AppAnsicht, AppRessourcen, AuditEintrag, BackupStatus, EinstellungenAntwort, SetupStatus, Sicherung, SitzungsAnsicht, Systemstatus } from "./typen";
 
 /** Fehler einer API-Anfrage mit einer Meldung, die man direkt anzeigen kann. */
 export class ApiFehler extends Error {
@@ -72,6 +72,7 @@ export const lion = {
   protokoll: (anzahl = 100) => api<{ eintraege: AuditEintrag[] }>(`/api/audit?anzahl=${anzahl}`),
   apps: () => api<{ apps: AppAnsicht[] }>("/api/apps"),
   appAktion: (id: string, aktion: "installieren" | "starten" | "stoppen") => api<unknown>(`${app(id)}/${aktion}`, { methode: "POST" }),
+  appRessourcen: () => api<{ apps: Record<string, AppRessourcen> }>("/api/apps/ressourcen"),
   appProtokoll: (id: string) => api<{ zeilen: string[] }>(`${app(id)}/protokoll`),
   appEntfernen: (id: string, bestaetigung: string) => api<unknown>(`${app(id)}/entfernen`, { daten: { bestaetigung } }),
   passwortAendern: (d: { altesPasswort: string; neuesPasswort: string }) => api<{ ok: true; abgemeldet: number }>("/api/auth/passwort", { daten: d }),

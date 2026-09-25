@@ -1,5 +1,5 @@
 import { zahl } from "./format";
-import type { AppAnsicht, AppStatus, Systemstatus } from "./typen";
+import type { AppAnsicht, AppRessourcen, AppStatus, Systemstatus } from "./typen";
 
 export type Ton = "gruen" | "gelb" | "rot" | "neutral" | "arbeitet";
 
@@ -135,4 +135,34 @@ export function ramWarnung(ramMinMb: number | undefined, system: Pick<Systemstat
     };
   }
   return null;
+}
+
+export type LiveAnzeige = {
+  ramText: string;
+  cpuText: string;
+  /** Anteil am gesamten Arbeitsspeicher bzw. an der ganzen CPU, 0…1 */
+  ramAnteil: number;
+  cpuAnteil: number;
+  /** Für Screenreader und Tooltips */
+  satz: string;
+};
+
+/** Live-Werte einer App für Kachel und Karte. Ohne Messung (App gestoppt, Docker langsam): null. */
+export function liveAnzeige(r: AppRessourcen | undefined, ramGesamtMb: number | undefined): LiveAnzeige | null {
+  if (!r) return null;
+  const cpuText = `${zahl(r.cpuProzent, r.cpuProzent > 0 && r.cpuProzent < 10 ? 1 : 0)} %`;
+  const ramText = ramTextLive(r.ramMb);
+  return {
+    ramText,
+    cpuText,
+    ramAnteil: ramGesamtMb && ramGesamtMb > 0 ? Math.min(1, Math.max(0, r.ramMb / ramGesamtMb)) : 0,
+    cpuAnteil: Math.min(1, Math.max(0, r.cpuProzent / 100)),
+    satz: `${ramText} Arbeitsspeicher, ${cpuText} CPU`,
+  };
+}
+
+/** Wie ramText, aber mit einer Nachkommastelle ab 1 GB („1,2 GB“). */
+function ramTextLive(mb: number): string {
+  if (mb < 1024) return `${zahl(Math.round(mb))} MB`;
+  return `${zahl(mb / 1024, 1)} GB`;
 }

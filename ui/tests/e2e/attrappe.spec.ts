@@ -141,6 +141,22 @@ test.describe("Startseite", () => {
     await barrierefrei(page);
   });
 
+  test("laufende Apps zeigen Live-Werte in der Kachel, gestoppte nicht", async ({ page }) => {
+    api.app("jellyfin").installiert = { status: "laeuft", meldung: null, adressen: ["https://localhost:8102"], datenordner: "/srv/lion/apps/jellyfin" };
+    api.app("uptime-kuma").installiert = { status: "gestoppt", meldung: null, adressen: ["https://localhost:8101"], datenordner: "/srv/lion/apps/uptime-kuma" };
+    api.ressourcen = { jellyfin: { cpuProzent: 3.4, ramMb: 1536 }, "uptime-kuma": { cpuProzent: 1, ramMb: 99 } };
+    await page.goto("/");
+    const kachel = page.getByRole("link", { name: /^Jellyfin \(1,5 GB Arbeitsspeicher, 3,4 % CPU\)/ });
+    await expect(kachel).toBeVisible();
+    await expect(kachel).toContainText("1,5 GB");
+    await expect(kachel).toContainText("3,4 %");
+    await expect(page.getByRole("link", { name: /^Uptime Kuma – Gestoppt/ })).not.toContainText("99 MB");
+    await barrierefrei(page);
+
+    await page.goto("/apps/");
+    await expect(page.getByRole("article").filter({ hasText: "Jellyfin" })).toContainText("Gerade: 1,5 GB Arbeitsspeicher · 3,4 % CPU");
+  });
+
   test("Suche filtert die Kacheln", async ({ page }) => {
     api.app("uptime-kuma").installiert = { status: "laeuft", meldung: null, adressen: ["https://localhost:8101"], datenordner: "/x" };
     api.app("vaultwarden").installiert = { status: "laeuft", meldung: null, adressen: ["https://localhost:8102"], datenordner: "/y" };

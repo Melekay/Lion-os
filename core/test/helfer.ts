@@ -53,6 +53,7 @@ export async function testServerMitApps() {
       entfernen: async () => {},
       status: async () => "laeuft",
       protokoll: async () => "app-1  | gestartet\n",
+      ressourcen: async () => new Map([["lion-app-uptime-kuma", { cpuProzent: 4, ramMb: 96 }]]),
     },
     caddy: { eintragSetzen: async () => {}, eintragEntfernen: async () => {}, adressen: async () => ["localhost"] },
     zustandsOrdner: join(basis, "zustand"),

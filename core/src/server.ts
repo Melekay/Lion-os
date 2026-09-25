@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import { cpus } from "node:os";
 import cookie from "@fastify/cookie";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -343,6 +344,9 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
     const name = (req: FastifyRequest) => req.benutzer?.name ?? "unbekannt";
 
     app.get("/api/apps", { preHandler: benoetigtAnmeldung }, async () => ({ apps: await apps.liste() }));
+    app.get("/api/apps/ressourcen", { preHandler: benoetigtAnmeldung }, async () => ({
+      apps: await apps.ressourcen(cpus().length),
+    }));
     app.get("/api/apps/:id/logo", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
       try {
         const logo = apps.logo(id(req));
