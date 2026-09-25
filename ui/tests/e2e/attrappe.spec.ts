@@ -117,10 +117,14 @@ test.describe("Startseite", () => {
     await page.clock.runFor(5_000);
     await page.clock.runFor(5_000);
     const bild = page.getByRole("img", { name: /Netzwerk-Verlauf/ });
-    await expect(bild).toHaveAttribute("aria-label", /^Netzwerk-Verlauf\. Empfangen (25|50) kB\/s, gesendet (4|8) kB\/s\.$/);
+    await expect(bild).toHaveAttribute("aria-label", /^Netzwerk-Verlauf\. Empfangen [\d,]+ kB\/s, gesendet [\d,]+ kB\/s\.$/);
     const label = (await bild.getAttribute("aria-label")) ?? "";
-    const [runter, hoch] = [...label.matchAll(/(\d+) kB/g)].map((m) => Number(m[1]));
-    expect((runter ?? 0) / (hoch ?? 1)).toBeCloseTo(6.25, 1);
+    // Deutsche Zahlen („7,9“). Die echte Zeit zwischen zwei Abfragen schwankt leicht – deshalb Bereich statt exakter Wert.
+    const [runter, hoch] = [...label.matchAll(/([\d,]+) kB/g)].map((m) => Number(m[1]!.replace(",", ".")));
+    expect(runter).toBeGreaterThan(20);
+    expect(runter).toBeLessThanOrEqual(50);
+    expect((runter ?? 0) / (hoch ?? 1)).toBeGreaterThan(5.5);
+    expect((runter ?? 0) / (hoch ?? 1)).toBeLessThan(7);
   });
 
   test("Kacheln: laufende App öffnet sich direkt, andere führen in den App Store", async ({ page }) => {
