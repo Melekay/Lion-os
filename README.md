@@ -5,7 +5,7 @@
 Lion OS macht aus einem Mini-PC einen privaten Heimserver – so einfach wie ein Smartphone:
 Apps mit einem Klick installieren, automatische Backups, sicher ab Werk.
 
-> Status: **Phase 1 (MVP) in Arbeit.** Installer, API, App-Verwaltung und Oberfläche laufen; Backup folgt.
+> Status: **Phase 1 (MVP) vollständig.** Installer, API, App-Verwaltung, Oberfläche, Einstellungen und verschlüsseltes Backup laufen.
 > Noch nicht für den produktiven Einsatz.
 
 ## Schnellstart (Debian 13)

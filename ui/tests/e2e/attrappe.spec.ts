@@ -7,6 +7,16 @@ const START = /^http:\/\/localhost:\d+\/$/;
 
 /** Keine schweren Barrierefreiheits-Fehler (WCAG 2.2 AA). */
 async function barrierefrei(page: Page) {
+  // Erst prüfen, wenn Einblend- und Farbübergänge fertig sind – sonst misst axe halb durchsichtigen Text.
+  // Endlose Animationen (pulsierender Statuspunkt) werden ausgenommen.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => undefined)),
+    ),
+  );
   const ergebnis = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
   const schwer = ergebnis.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(schwer.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
@@ -327,5 +337,85 @@ test.describe("Einstellungen", () => {
     await expect(page.getByText("Unbekanntes Gerät", { exact: true })).toHaveCount(0);
     await expect(alle).toBeDisabled();
     expect(api.anfragen.filter((a) => a.pfad === "/api/auth/sitzungen/abmelden").at(-1)?.body).toEqual({});
+  });
+});
+
+test.describe("Backup", () => {
+  test("Kachel zeigt den Zustand; Einrichten zeigt den Schlüssel genau einmal und verlangt Bestätigung", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "Backup – Nicht eingerichtet" }).click();
+    await expect(page).toHaveURL(/\/backup\/$/);
+    await barrierefrei(page);
+
+    await page.getByLabel("Ordner auf der Backup-Festplatte").fill("/etc");
+    await page.getByRole("button", { name: "Backup einrichten" }).click();
+    await expect(page.getByText("nur in Unterordnern von /mnt")).toBeVisible();
+
+    await page.getByLabel("Ordner auf der Backup-Festplatte").fill("/mnt/usb-backup");
+    await page.getByLabel("Tägliche Uhrzeit").fill("02:30");
+    await page.getByRole("button", { name: "Backup einrichten" }).click();
+    await expect(page.getByRole("heading", { name: "Dein Wiederherstellungsschlüssel" })).toBeVisible();
+    await expect(page.getByLabel("Schlüssel", { exact: true })).toHaveText("ABCD-EFGH-JKLM-NPQR-STUV-WXYZ");
+    await barrierefrei(page);
+    const weiter = page.getByRole("button", { name: "Weiter" });
+    await expect(weiter).toBeDisabled();
+    await page.getByLabel(/sicher notiert/).check();
+    await weiter.click();
+
+    await expect(page.getByText("Noch kein Backup")).toBeVisible();
+    await expect(page.getByText("/mnt/usb-backup")).toBeVisible();
+    expect(api.anfragen.filter((a) => a.pfad === "/api/backup/einrichten").at(-1)?.body).toEqual({ ziel: "/mnt/usb-backup", zeit: "02:30" });
+  });
+
+  test("Jetzt sichern: läuft, dann gesichert und in der Liste", async ({ page }) => {
+    api.backup = { ...api.backup, eingerichtet: true, ziel: "/mnt/usb" };
+    await page.goto("/backup/");
+    await page.getByRole("button", { name: "Jetzt sichern" }).click();
+    await expect(page.getByText("Sicherung läuft …")).toBeVisible();
+    await expect(page.getByText("Gesichert", { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("12,4 MB neu")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Sicherung vom .* wiederherstellen/ })).toBeVisible();
+    expect(api.anfragen.find((a) => a.pfad === "/api/backup/jetzt")?.csrf).toBe("1");
+  });
+
+  test("Wiederherstellen verlangt App-Auswahl und Eintippen der ID; nichts wird gelöscht", async ({ page }) => {
+    api.backup = { ...api.backup, eingerichtet: true, ziel: "/mnt/usb" };
+    api.sicherungenListe = [{ id: "abcdef12".padEnd(64, "0"), kurz: "abcdef12", zeit: "2026-09-25T03:00:00.000Z", pfade: ["/daten"] }];
+    await page.goto("/backup/");
+    await page.getByRole("button", { name: /Sicherung vom .* wiederherstellen/ }).click();
+    const dialog = page.getByRole("dialog");
+    const los = dialog.getByRole("button", { name: "Wiederherstellen" });
+    await expect(los).toBeDisabled();
+    await dialog.getByLabel("Welche App?").selectOption("uptime-kuma");
+    await expect(dialog).toContainText("Nichts wird gelöscht");
+    await expect(dialog).toContainText("/srv/lion/apps/.uptime-kuma.vor-wiederherstellung-");
+    await dialog.getByLabel(/Zur Bestätigung/).fill("uptime");
+    await expect(los).toBeDisabled();
+    await dialog.getByLabel(/Zur Bestätigung/).fill("uptime-kuma");
+    await barrierefrei(page);
+    await los.click();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByText("uptime-kuma wiederhergestellt")).toBeVisible({ timeout: 15_000 });
+    expect(api.anfragen.find((a) => a.pfad === "/api/backup/wiederherstellen")?.body).toEqual({ sicherung: "abcdef12", app: "uptime-kuma", bestaetigung: "uptime-kuma" });
+  });
+
+  test("Schlüssel nur mit richtigem Passwort; Zeitplan speichern", async ({ page }) => {
+    api.backup = { ...api.backup, eingerichtet: true, ziel: "/mnt/usb" };
+    await page.goto("/backup/");
+    await page.getByLabel("Dein Passwort").fill("falsch-falsch");
+    await page.getByRole("button", { name: "Schlüssel anzeigen" }).click();
+    await expect(page.getByText("Das Passwort stimmt nicht.")).toBeVisible();
+    await page.getByLabel("Dein Passwort").fill("richtiges-passwort");
+    await page.getByRole("button", { name: "Schlüssel anzeigen" }).click();
+    await expect(page.getByLabel("Schlüssel", { exact: true })).toHaveText("ABCD-EFGH-JKLM-NPQR-STUV-WXYZ");
+
+    await page.getByLabel("Täglich automatisch sichern").uncheck();
+    await page.getByRole("button", { name: "Speichern" }).click();
+    await expect(page.getByText("Zeitplan gespeichert.")).toBeVisible();
+    expect(api.backup.aktiv).toBe(false);
+    // Die Meldung bleibt stehen, auch nachdem der Status neu geladen wurde.
+    await expect.poll(() => api.anfragen.filter((a) => a.pfad === "/api/backup").length).toBeGreaterThanOrEqual(2);
+    await expect(page.getByText("Zeitplan gespeichert.")).toBeVisible();
+    await expect(page.getByLabel("Täglich automatisch sichern")).not.toBeChecked();
   });
 });

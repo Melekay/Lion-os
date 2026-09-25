@@ -13,6 +13,7 @@ Kein eigener Server, keine Cookies außer der Sitzung von lion-core, kein Tracki
 | `/` | Startseite. **Links** Widgets: Uhr, System (CPU/RAM als Ringe, Ampel mit Hinweisen), Speicher, Netzwerk-Verlauf, letzte Aktivität. **Rechts** Suche und Kacheln: App Store, installierte Apps (Klick öffnet die App, Punkt zeigt den Status), Protokoll |
 | `/apps/` | App Store: installieren, öffnen, starten, stoppen, entfernen (mit Bestätigung, Daten bleiben) |
 | `/protokoll/` | Audit-Log von lion-core |
+| `/backup/` | Backup einrichten (Ziel, Uhrzeit, Schlüssel einmalig anzeigen), Status, Jetzt sichern, Zeitplan, Sicherungen mit Wiederherstellen pro App, Schlüssel mit Passwort anzeigen |
 | `/einstellungen/` | Name der Box, Version, Adressen, Passwort ändern, angemeldete Geräte (einzeln oder alle anderen abmelden), Hinweis zu Updates |
 
 ## Entwickeln

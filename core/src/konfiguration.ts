@@ -12,6 +12,8 @@ const Schema = z.object({
   LION_APPS_DATEN: z.string().default("/srv/lion/apps"),
   LION_CADDY_APPS: z.string().default("/opt/lion/stack/apps"),
   LION_ADRESSEN: z.string().default("/etc/lion/adressen"),
+  LION_BACKUP_ARBEIT: z.string().default("/var/lib/lion/backup"),
+  LION_BACKUP_ZIELE: z.string().default("/mnt,/media"),
   LION_SETUP_CODE: z.string().min(8, "LION_SETUP_CODE muss mindestens 8 Zeichen haben.").optional(),
 });
 
@@ -27,6 +29,8 @@ export type Konfiguration = {
   caddyApps: string;
   adressen: string;
   einrichtungsCode?: string;
+  backupArbeit: string;
+  backupZiele: string[];
 };
 
 export function ladeKonfiguration(umgebung: NodeJS.ProcessEnv = process.env): Konfiguration {
@@ -48,5 +52,7 @@ export function ladeKonfiguration(umgebung: NodeJS.ProcessEnv = process.env): Ko
     caddyApps: k.LION_CADDY_APPS,
     adressen: k.LION_ADRESSEN,
     einrichtungsCode: k.LION_SETUP_CODE,
+    backupArbeit: k.LION_BACKUP_ARBEIT,
+    backupZiele: k.LION_BACKUP_ZIELE.split(",").map((z) => z.trim()).filter(Boolean),
   };
 }

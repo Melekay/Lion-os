@@ -3,6 +3,8 @@ import cookie from "@fastify/cookie";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
 import { AppFehler, type AppVerwaltung } from "./apps.js";
+import { BackupFehler, type BackupVerwaltung } from "./backup/backup.js";
+import { ResticFehler } from "./backup/restic.js";
 import { letzteEintraege, protokolliere } from "./audit.js";
 import type { Datenbank } from "./datenbank.js";
 import { BoxName, ladeEinstellungen, speichereBoxName } from "./einstellungen.js";
@@ -19,7 +21,7 @@ import {
   SITZUNG_DAUER_MS,
   type SitzungsBenutzer,
 } from "./sitzungen.js";
-import { systemstatus, type Systemstatus } from "./system.js";
+import { schlimmer, systemstatus, type Systemstatus } from "./system.js";
 
 export type ServerOptionen = {
   db: Datenbank;
@@ -30,6 +32,7 @@ export type ServerOptionen = {
   sichereCookies?: boolean;
   logger?: boolean;
   apps?: AppVerwaltung;
+  backup?: BackupVerwaltung;
   /** Adressen, unter denen Lion OS erreichbar ist (aus /etc/lion/adressen); für die Einstellungen. */
   adressen?: () => Promise<string[]>;
   /** Wenn gesetzt, verlangt die Einrichtung diesen Code (der Installer schreibt ihn nach /etc/lion/lion.env). */
@@ -245,7 +248,78 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
     return ladeEinstellungen(db);
   });
 
-  app.get("/api/system", { preHandler: benoetigtAnmeldung }, async () => status());
+  // Systemstatus plus Backup-Hinweis: Ein fehlendes oder fehlgeschlagenes Backup gehört in die Ampel.
+  app.get("/api/system", { preHandler: benoetigtAnmeldung }, async () => {
+    const s = await status();
+    const h = opt.backup?.hinweis();
+    if (!h) return s;
+    return { ...s, hinweise: [...s.hinweise, h], ampel: schlimmer(s.ampel, h.stufe) };
+  });
+
+  // ---- Backup ---------------------------------------------------------------
+  const backup = opt.backup;
+  if (backup) {
+    const backupFehler = async (reply: FastifyReply, arbeit: () => Promise<unknown> | unknown, code = 200) => {
+      try {
+        return reply.code(code).send((await arbeit()) ?? { ok: true });
+      } catch (e) {
+        if (e instanceof BackupFehler) return reply.code(e.code).send({ fehler: e.message });
+        if (e instanceof ResticFehler) return reply.code(502).send({ fehler: `Backup-Ziel nicht lesbar: ${e.message}` });
+        throw e;
+      }
+    };
+    const wer = (req: FastifyRequest) => req.benutzer?.name ?? "unbekannt";
+
+    app.get("/api/backup", { preHandler: benoetigtAnmeldung }, async () => backup.status());
+
+    app.post("/api/backup/einrichten", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
+      const d = z.object({ ziel: z.string().max(200), zeit: z.string().max(5) }).safeParse(req.body);
+      if (!d.success) return reply.code(400).send({ fehler: "Ziel und Uhrzeit angeben." });
+      return backupFehler(reply, async () => ({ ...(await backup.einrichten(d.data, wer(req))), status: backup.status() }));
+    });
+
+    app.post("/api/backup/plan", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
+      const d = z.object({ zeit: z.string().max(5), aktiv: z.boolean() }).safeParse(req.body);
+      if (!d.success) return reply.code(400).send({ fehler: "Uhrzeit und An/Aus angeben." });
+      return backupFehler(reply, () => backup.planAendern(d.data, wer(req)));
+    });
+
+    app.post("/api/backup/jetzt", { preHandler: benoetigtAnmeldung }, async (req, reply) =>
+      backupFehler(reply, () => backup.sichern(wer(req)), 202),
+    );
+
+    app.get("/api/backup/sicherungen", { preHandler: benoetigtAnmeldung }, async (_req, reply) =>
+      backupFehler(reply, async () => ({ sicherungen: await backup.sicherungen() })),
+    );
+
+    app.post("/api/backup/wiederherstellen", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
+      const d = z.object({ sicherung: z.string().max(64), app: z.string().max(64), bestaetigung: z.unknown() }).safeParse(req.body);
+      if (!d.success) return reply.code(400).send({ fehler: "Sicherung und App angeben." });
+      return backupFehler(reply, () => backup.wiederherstellen(d.data, wer(req)), 202);
+    });
+
+    // Der Schlüssel entschlüsselt alle Sicherungen – nur nach erneuter Passworteingabe.
+    app.post("/api/backup/schluessel", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
+      const ich = req.benutzer!;
+      const schluessel = `schluessel:${req.ip}`;
+      const gesperrt = sperre.gesperrtFuer(schluessel);
+      if (gesperrt > 0) {
+        reply.header("retry-after", Math.ceil(gesperrt / 1000));
+        return reply.code(429).send({ fehler: `Zu viele Fehlversuche. Bitte in ${Math.ceil(gesperrt / 60000)} Minuten erneut versuchen.` });
+      }
+      const d = z.object({ passwort: z.string().min(1).max(256) }).safeParse(req.body);
+      if (!d.success) return reply.code(400).send({ fehler: "Bitte dein Passwort eingeben." });
+      const zeile = db.prepare("SELECT passwort_hash FROM benutzer WHERE id = ?").get(ich.id) as { passwort_hash: string };
+      if (!(await pruefePasswort(d.data.passwort, zeile.passwort_hash))) {
+        sperre.fehlversuch(schluessel);
+        protokolliere(db, { benutzer: ich.name, aktion: "backup.schluessel", ergebnis: "abgelehnt", details: `ip=${req.ip}` });
+        return reply.code(403).send({ fehler: "Das Passwort stimmt nicht." });
+      }
+      sperre.erfolg(schluessel);
+      protokolliere(db, { benutzer: ich.name, aktion: "backup.schluessel", ergebnis: "erfolg", details: `ip=${req.ip}` });
+      return backupFehler(reply, async () => ({ schluessel: await backup.schluessel() }));
+    });
+  }
 
   app.get("/api/audit", { preHandler: benoetigtAnmeldung }, async (req) => {
     const anzahl = Number((req.query as { anzahl?: string }).anzahl ?? 100);

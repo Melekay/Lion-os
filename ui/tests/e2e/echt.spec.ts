@@ -104,3 +104,17 @@ test("Einstellungen mit echtem lion-core: Name der Box und Passwort ändern", as
   await page.getByRole("button", { name: "Anmelden" }).click();
   await expect(page).toHaveURL(START);
 });
+
+test("Backup mit echtem lion-core: Ampel warnt, unsicheres Ziel wird abgelehnt", async ({ page }) => {
+  await page.goto("/anmelden/");
+  await page.getByLabel("Name").fill("admin");
+  await page.getByLabel("Passwort").fill("ein-neues-test-passwort-789");
+  await page.getByRole("button", { name: "Anmelden" }).click();
+  await expect(page).toHaveURL(START);
+  await expect(page.getByText("Noch kein Backup eingerichtet.", { exact: false })).toBeVisible();
+
+  await page.goto("/backup/");
+  await page.getByLabel("Ordner auf der Backup-Festplatte").fill("/etc");
+  await page.getByRole("button", { name: "Backup einrichten" }).click();
+  await expect(page.locator("form").getByRole("alert")).toContainText("nur in Unterordnern von /mnt oder /media");
+});

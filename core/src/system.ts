@@ -19,7 +19,7 @@ export type Messwerte = {
 
 export type Netzwerk = { schnittstelle: string; empfangenBytes: number; gesendetBytes: number };
 
-export type Hinweis = { bereich: "cpu" | "ram" | "speicher" | "temperatur"; stufe: Ampel; text: string };
+export type Hinweis = { bereich: "cpu" | "ram" | "speicher" | "temperatur" | "backup"; stufe: Ampel; text: string };
 
 export type Systemstatus = Messwerte & { ampel: Ampel; hinweise: Hinweis[] };
 
@@ -34,7 +34,7 @@ export const GRENZEN = {
   tempRot: 85,
 } as const;
 
-const schlimmer = (a: Ampel, b: Ampel): Ampel => (a === "rot" || b === "rot" ? "rot" : a === "gelb" || b === "gelb" ? "gelb" : "gruen");
+export const schlimmer = (a: Ampel, b: Ampel): Ampel => (a === "rot" || b === "rot" ? "rot" : a === "gelb" || b === "gelb" ? "gelb" : "gruen");
 
 export function bewerte(m: Messwerte): { ampel: Ampel; hinweise: Hinweis[] } {
   const hinweise: Hinweis[] = [];

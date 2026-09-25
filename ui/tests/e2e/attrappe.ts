@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test";
-import type { AppAnsicht, AuditEintrag, SitzungsAnsicht, Systemstatus } from "../../lib/typen";
+import type { AppAnsicht, AuditEintrag, BackupLauf, BackupStatus, Sicherung, SitzungsAnsicht, Systemstatus } from "../../lib/typen";
 
 /**
  * Nachgebildetes lion-core im Browser: So lassen sich Zustände prüfen, die mit echtem Docker
@@ -61,6 +61,28 @@ export class Attrappe {
     { id: 2, erstelltAm: "2026-09-24T18:00:00.000Z", laeuftAb: "2026-10-01T18:00:00.000Z", geraet: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1", ip: "192.168.1.23", aktuell: false },
     { id: 3, erstelltAm: null, laeuftAb: "2026-10-01T18:00:00.000Z", geraet: null, ip: null, aktuell: false },
   ];
+
+  backup: BackupStatus = {
+    eingerichtet: false, ziel: null, zeit: "03:00", aktiv: true, laeuft: null,
+    letzter: null, letzterErfolg: null, letzteWiederherstellung: null, naechster: null,
+  };
+  sicherungenListe: Sicherung[] = [];
+  backupSchluessel = "ABCD-EFGH-JKLM-NPQR-STUV-WXYZ";
+  private backupRest = 0;
+  private backupApp: string | null = null;
+
+  private backupWeiter() {
+    if (!this.backup.laeuft || this.backupRest-- > 0) return;
+    const jetzt = new Date().toISOString();
+    const lauf = (art: BackupLauf["art"]): BackupLauf => ({ id: Date.now(), art, start: jetzt, ende: jetzt, status: "erfolg", meldung: null, sicherung: "abcdef12", bytesNeu: 13_000_000, app: this.backupApp });
+    if (this.backup.laeuft === "sicherung") {
+      this.backup.letzter = this.backup.letzterErfolg = lauf("sicherung");
+      this.sicherungenListe = [{ id: "abcdef12".padEnd(64, "0"), kurz: "abcdef12", zeit: jetzt, pfade: ["/daten"] }, ...this.sicherungenListe];
+    } else {
+      this.backup.letzteWiederherstellung = lauf("wiederherstellung");
+    }
+    this.backup.laeuft = null;
+  }
 
   private laufend = new Map<string, { ziel: "laeuft" | "weg"; rest: number }>();
 
@@ -143,6 +165,37 @@ export class Attrappe {
       const vorher = this.sitzungen.length;
       this.sitzungen = this.sitzungen.filter((s) => s.aktuell || (body?.id !== undefined && s.id !== body.id));
       return this.json(route, 200, { ok: true, abgemeldet: vorher - this.sitzungen.length });
+    }
+    if (pfad === "/api/backup") {
+      this.backupWeiter();
+      return this.json(route, 200, this.backup);
+    }
+    if (pfad === "/api/backup/einrichten") {
+      if (!String(body?.ziel ?? "").startsWith("/mnt/")) return this.json(route, 400, { fehler: "Backups sind nur in Unterordnern von /mnt oder /media erlaubt." });
+      const neu = !this.backup.eingerichtet;
+      this.backup = { ...this.backup, eingerichtet: true, ziel: body.ziel, zeit: body.zeit, naechster: new Date(Date.now() + 3_600_000).toISOString() };
+      return this.json(route, 200, { schluesselNeu: neu ? this.backupSchluessel : null, status: this.backup });
+    }
+    if (pfad === "/api/backup/plan") {
+      this.backup = { ...this.backup, zeit: body.zeit, aktiv: body.aktiv };
+      return this.json(route, 200, this.backup);
+    }
+    if (pfad === "/api/backup/jetzt") {
+      this.backup.laeuft = "sicherung";
+      this.backupRest = this.schritte;
+      return this.json(route, 202, { ok: true });
+    }
+    if (pfad === "/api/backup/sicherungen") return this.json(route, 200, { sicherungen: this.sicherungenListe });
+    if (pfad === "/api/backup/wiederherstellen") {
+      if (body?.bestaetigung !== body?.app) return this.json(route, 400, { fehler: "Bestätigung fehlt." });
+      this.backup.laeuft = "wiederherstellung";
+      this.backupApp = body.app;
+      this.backupRest = this.schritte;
+      return this.json(route, 202, { ok: true });
+    }
+    if (pfad === "/api/backup/schluessel") {
+      if (body?.passwort !== this.passwort) return this.json(route, 403, { fehler: "Das Passwort stimmt nicht." });
+      return this.json(route, 200, { schluessel: this.backupSchluessel });
     }
     if (pfad === "/api/audit") return this.json(route, 200, { eintraege: this.protokoll });
     if (pfad === "/api/apps") {

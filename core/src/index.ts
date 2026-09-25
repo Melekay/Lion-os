@@ -1,4 +1,7 @@
 import { AppVerwaltung } from "./apps.js";
+import { BackupVerwaltung } from "./backup/backup.js";
+import { DockerRestic } from "./backup/restic.js";
+import { pruefeZiel } from "./backup/ziel.js";
 import { DateiCaddy } from "./caddy.js";
 import { oeffneDatenbank } from "./datenbank.js";
 import { ladeKatalog } from "./katalog.js";
@@ -19,12 +22,21 @@ const apps = new AppVerwaltung({
   zustandsOrdner: konfig.appsZustand,
   datenOrdner: konfig.appsDaten,
 });
-const server = baueServer({ db, version: konfig.version, logger: true, apps, einrichtungsCode: konfig.einrichtungsCode, adressen: () => caddy.adressen() });
+const backup = new BackupVerwaltung({
+  db,
+  restic: new DockerRestic(),
+  apps,
+  pfade: { appDaten: konfig.appsDaten, appZustand: konfig.appsZustand, arbeit: konfig.backupArbeit },
+  pruefeZiel: (pfad) => pruefeZiel(pfad, { erlaubt: konfig.backupZiele, daten: konfig.appsDaten }),
+});
+const server = baueServer({ db, version: konfig.version, logger: true, apps, einrichtungsCode: konfig.einrichtungsCode, adressen: () => caddy.adressen(), backup });
 for (const f of katalog.fehler) server.log.warn(`App-Vorlage abgelehnt: ${f}`);
 server.log.info(`${katalog.vorlagen.length} App-Vorlagen geladen.`);
 if (!konfig.einrichtungsCode) server.log.warn("Kein LION_SETUP_CODE gesetzt – jeder im Netz kann die Einrichtung durchführen.");
 
 setInterval(() => raeumeAbgelaufeneAuf(db), 60 * 60 * 1000).unref();
+// Zeitplan fürs Backup: jede Minute prüfen, ob die tägliche Sicherung fällig ist.
+setInterval(() => backup.zeitplanPruefen(), 60 * 1000).unref();
 
 const beenden = async () => {
   await server.close();

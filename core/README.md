@@ -35,6 +35,13 @@ Im Betrieb lauscht lion-core nur auf `127.0.0.1`; Caddy leitet von außen weiter
 | GET | `/api/auth/sitzungen` | ja | Angemeldete Geräte (Gerät, IP, seit wann, `aktuell`) – nie Tokens oder Hashes |
 | POST | `/api/auth/sitzungen/abmelden` | ja | `{id}` beendet ein anderes Gerät, `{}` alle anderen |
 | GET | `/api/einstellungen` | ja | Name der Box, Version, Adressen |
+| GET | `/api/backup` | ja | Backup-Status: Ziel, Zeitplan, laufende Aktion, letzte Sicherung/Wiederherstellung, nächster Lauf |
+| POST | `/api/backup/einrichten` | ja | `{ziel, zeit}` – Ziel prüfen, Repository anlegen; liefert den Schlüssel **nur beim ersten Mal** |
+| POST | `/api/backup/plan` | ja | `{zeit, aktiv}` – täglicher Zeitplan |
+| POST | `/api/backup/jetzt` | ja | Sicherung im Hintergrund starten (202) |
+| GET | `/api/backup/sicherungen` | ja | Liste der Sicherungen (neueste zuerst) |
+| POST | `/api/backup/wiederherstellen` | ja | `{sicherung, app, bestaetigung: "<app>"}` – Daten einer App zurückholen (202) |
+| POST | `/api/backup/schluessel` | ja | `{passwort}` – Wiederherstellungsschlüssel anzeigen (Passwort nötig, Sperre nach 5 Fehlversuchen) |
 | POST | `/api/einstellungen` | ja | Name der Box ändern `{boxName}` (1–40 Zeichen, Buchstaben/Ziffern/Leerzeichen/`-_.'`) |
 | GET | `/api/system` | ja | CPU, RAM, Speicher, Temperatur, Netzwerk-Zähler (nur echte Karten) + Ampel mit Hinweisen |
 | GET | `/api/audit?anzahl=100` | ja | Letzte Einträge des Audit-Logs |
@@ -80,8 +87,27 @@ Browser ──HTTPS──▶ Caddy (Host-Netz, Port 8100+n) ──▶ 127.0.0.1:
 | `LION_APPS_DATEN` | `/srv/lion/apps` |
 | `LION_CADDY_APPS` | `/opt/lion/stack/apps` |
 | `LION_ADRESSEN` | `/etc/lion/adressen` |
+| `LION_BACKUP_ARBEIT` | `/var/lib/lion/backup` (Schlüssel, Datenbank-Abzug) |
+| `LION_BACKUP_ZIELE` | `/mnt,/media` (nur darunter sind Backup-Ziele erlaubt) |
 
 Echter Docker-Test: `LION_DOCKER_TEST=1 npx vitest run test/docker.integration.test.ts`
+
+## Backup
+
+```
+lion-core ──docker run (ohne Netz, schreibgeschützt)──▶ restic 0.18.1 ──▶ Ziel (/mnt/… oder /media/…)
+```
+
+- **Was:** alle App-Daten (`/srv/lion/apps`), App-Zustand (`/var/lib/lion/apps` mit `.env`) und ein konsistenter Abzug der lion-Datenbank (`VACUUM INTO`).
+- **Verschlüsselt** mit einem Wiederherstellungsschlüssel (6×4 Zeichen, 120 Bit) in `/var/lib/lion/backup/schluessel` (600). Er wird beim Einrichten **einmal** angezeigt; später nur mit Passwort.
+- **Konsistent:** Laufende Apps werden während der Sicherung kurz angehalten und danach **immer** wieder gestartet, auch bei Fehlern.
+- **Ziel:** nur Unterordner von `/mnt` oder `/media`, Symlinks aufgelöst, auf einer **anderen Festplatte** als die Daten. Ein Ziel mit fremdem Schlüssel wird abgelehnt.
+- **Aufbewahrung:** 7 tägliche, 4 wöchentliche, 6 monatliche (`restic forget --prune`).
+- **Wiederherstellen** pro App: Die aktuellen Daten werden beiseitegelegt (`.<app>.vor-wiederherstellung-<zeit>`), nie gelöscht. Enthält die Sicherung nichts für die App oder schlägt restic fehl, wird zurückgerollt.
+- **Ampel:** Kein Backup, ein fehlgeschlagenes oder ein zu altes (> 2 Tage gelb, > 7 Tage rot) erscheint als Hinweis auf der Startseite.
+- restic-Container: `--network none`, `--read-only`, `--cap-drop ALL` plus nur `DAC_READ_SEARCH` und `DAC_OVERRIDE` (Sichern – Ziel gehört oft einem normalen Benutzer) bzw. zusätzlich `CHOWN`, `FOWNER` (Wiederherstellen), `no-new-privileges`.
+
+Echter Wiederherstellungstest: `LION_DOCKER_TEST=1 npx vitest run test/backup.integration.test.ts`
 
 ## Systemstatus (Ampel)
 
