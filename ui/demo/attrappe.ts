@@ -17,6 +17,7 @@ type Zustand = {
   sitzungen: SitzungsAnsicht[];
   backup: BackupStatus;
   sicherungen: Sicherung[];
+  foto?: string | null;
 };
 
 const SPEICHER_SCHLUESSEL = "lion-demo-zustand-v1";
@@ -58,6 +59,15 @@ function anfangszustand(): Zustand {
 
 function antwort(status: number, body: unknown) {
   return new Response(body === undefined ? "" : JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+}
+
+function blobAlsDatenAdresse(b: Blob): Promise<string> {
+  return new Promise((fertig, fehler) => {
+    const leser = new FileReader();
+    leser.onload = () => fertig(String(leser.result));
+    leser.onerror = () => fehler(leser.error);
+    leser.readAsDataURL(b);
+  });
 }
 
 const warte = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -103,10 +113,15 @@ export class DemoApi {
       if (!url.pathname.startsWith("/api/")) return original(eingabe, init);
       await warte(120 + Math.random() * 180);
       let body: Record<string, unknown> | undefined;
-      try {
-        body = init?.body ? JSON.parse(String(init.body)) : undefined;
-      } catch {
-        body = undefined;
+      if (init?.body instanceof Blob) {
+        // Foto-Upload: in der Demo als data:-Adresse im Browser behalten.
+        body = { daten: await blobAlsDatenAdresse(init.body) };
+      } else {
+        try {
+          body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        } catch {
+          body = undefined;
+        }
       }
       const ergebnis = this.antworten(init?.method ?? "GET", url.pathname, url.searchParams, body ?? {});
       this.speichern();
@@ -262,7 +277,7 @@ export class DemoApi {
     }
     if (pfad === "/api/system") return antwort(200, this.system());
     if (pfad === "/api/einstellungen" && methode === "GET") {
-      return antwort(200, { boxName: z.boxName, version: "0.1.0-demo", adressen: ["lion.local", "192.168.1.20"] });
+      return antwort(200, { boxName: z.boxName, version: "0.1.0-demo", adressen: ["lion.local", "192.168.1.20"], hintergrundFoto: z.foto ?? null });
     }
     if (pfad === "/api/einstellungen") {
       const name = String(body.boxName ?? "").trim();
@@ -270,6 +285,18 @@ export class DemoApi {
       z.boxName = name;
       this.protokolliere("einstellungen.aendern", null);
       return antwort(200, { boxName: name });
+    }
+    if (pfad === "/api/hintergrund") {
+      const daten = String(body.daten ?? "");
+      if (!daten.startsWith("data:image/jpeg;base64,")) return antwort(415, { fehler: "Bitte ein Foto als JPEG senden." });
+      z.foto = daten;
+      this.protokolliere("hintergrund.hochladen", null);
+      return antwort(200, { hintergrundFoto: daten });
+    }
+    if (pfad === "/api/hintergrund/entfernen") {
+      z.foto = null;
+      this.protokolliere("hintergrund.entfernen", null);
+      return antwort(200, { ok: true });
     }
     if (pfad === "/api/audit") return antwort(200, { eintraege: z.protokoll.slice(0, Number(suche.get("anzahl") ?? 100)) });
 

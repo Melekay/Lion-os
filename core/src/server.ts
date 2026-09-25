@@ -9,6 +9,7 @@ import { ResticFehler } from "./backup/restic.js";
 import { letzteEintraege, protokolliere } from "./audit.js";
 import type { Datenbank } from "./datenbank.js";
 import { BoxName, ladeEinstellungen, speichereBoxName } from "./einstellungen.js";
+import { type HintergrundFoto, istJpeg, MAX_FOTO_BYTES } from "./hintergrund.js";
 import { hashePasswort, passwortRegelVerletzt, pruefePasswort } from "./passwort.js";
 import { AnmeldeSperre } from "./sperre.js";
 import {
@@ -38,6 +39,8 @@ export type ServerOptionen = {
   adressen?: () => Promise<string[]>;
   /** Wenn gesetzt, verlangt die Einrichtung diesen Code (der Installer schreibt ihn nach /etc/lion/lion.env). */
   einrichtungsCode?: string;
+  /** Eigenes Hintergrundfoto (fehlt es, gibt es die Funktion nicht). */
+  hintergrund?: HintergrundFoto;
 };
 
 declare module "fastify" {
@@ -235,11 +238,49 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
   });
 
   // ---- Einstellungen ------------------------------------------------------
-  app.get("/api/einstellungen", { preHandler: benoetigtAnmeldung }, async () => ({
-    ...ladeEinstellungen(db),
-    version: opt.version,
-    adressen: opt.adressen ? await opt.adressen() : [],
-  }));
+  app.get("/api/einstellungen", { preHandler: benoetigtAnmeldung }, async () => {
+    const fotoVersion = opt.hintergrund ? await opt.hintergrund.version() : null;
+    return {
+      ...ladeEinstellungen(db),
+      version: opt.version,
+      adressen: opt.adressen ? await opt.adressen() : [],
+      hintergrundFoto: fotoVersion === null ? null : `/api/hintergrund?v=${fotoVersion}`,
+    };
+  });
+
+  // ---- Eigenes Hintergrundfoto --------------------------------------------
+  const hintergrund = opt.hintergrund;
+  if (hintergrund) {
+    // Nur für diese Route: rohes JPEG als Buffer annehmen (sonst gilt das kleine JSON-Limit).
+    app.addContentTypeParser("image/jpeg", { parseAs: "buffer", bodyLimit: MAX_FOTO_BYTES }, (_req, body, fertig) => fertig(null, body));
+
+    app.get("/api/hintergrund", { preHandler: benoetigtAnmeldung }, async (_req, reply) => {
+      const foto = await hintergrund.lesen();
+      if (!foto) return reply.code(404).send({ fehler: "Es gibt kein eigenes Hintergrundfoto." });
+      return reply
+        .header("content-type", "image/jpeg")
+        .header("x-content-type-options", "nosniff")
+        .header("content-security-policy", "default-src 'none'; sandbox")
+        .header("cache-control", "private, max-age=31536000, immutable")
+        .send(foto);
+    });
+
+    app.post("/api/hintergrund", { preHandler: benoetigtAnmeldung, bodyLimit: MAX_FOTO_BYTES }, async (req, reply) => {
+      const daten = req.body;
+      if (!Buffer.isBuffer(daten) || !istJpeg(daten)) {
+        return reply.code(415).send({ fehler: "Bitte ein Foto als JPEG senden." });
+      }
+      const version = await hintergrund.speichern(daten);
+      protokolliere(db, { benutzer: req.benutzer?.name, aktion: "hintergrund.hochladen", ergebnis: "erfolg", details: `${Math.round(daten.length / 1024)} KB` });
+      return { hintergrundFoto: `/api/hintergrund?v=${version}` };
+    });
+
+    app.post("/api/hintergrund/entfernen", { preHandler: benoetigtAnmeldung }, async (req) => {
+      const gab = await hintergrund.entfernen();
+      if (gab) protokolliere(db, { benutzer: req.benutzer?.name, aktion: "hintergrund.entfernen", ergebnis: "erfolg" });
+      return { ok: true };
+    });
+  }
 
   app.post("/api/einstellungen", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
     const daten = z.object({ boxName: BoxName }).safeParse(req.body);

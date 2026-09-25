@@ -6,6 +6,7 @@ import { DateiCaddy } from "./caddy.js";
 import { oeffneDatenbank } from "./datenbank.js";
 import { ladeKatalog } from "./katalog.js";
 import { ladeKonfiguration } from "./konfiguration.js";
+import { HintergrundFoto } from "./hintergrund.js";
 import { baueServer } from "./server.js";
 import { DockerComposeLaufzeit } from "./laufzeit.js";
 import { raeumeAbgelaufeneAuf } from "./sitzungen.js";
@@ -30,7 +31,7 @@ const backup = new BackupVerwaltung({
   pfade: { appDaten: konfig.appsDaten, appZustand: konfig.appsZustand, arbeit: konfig.backupArbeit },
   pruefeZiel: (pfad) => pruefeZiel(pfad, { erlaubt: konfig.backupZiele, daten: konfig.appsDaten }),
 });
-const server = baueServer({ db, version: konfig.version, logger: true, apps, einrichtungsCode: konfig.einrichtungsCode, adressen: () => caddy.adressen(), backup });
+const server = baueServer({ db, version: konfig.version, logger: true, apps, einrichtungsCode: konfig.einrichtungsCode, adressen: () => caddy.adressen(), backup, hintergrund: new HintergrundFoto(konfig.hintergrund) });
 for (const f of katalog.fehler) server.log.warn(`App-Vorlage abgelehnt: ${f}`);
 server.log.info(`${katalog.vorlagen.length} App-Vorlagen geladen.`);
 if (!konfig.einrichtungsCode) server.log.warn("Kein LION_SETUP_CODE gesetzt – jeder im Netz kann die Einrichtung durchführen.");
