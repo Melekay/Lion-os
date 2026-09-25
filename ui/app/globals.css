@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   DESIGN-TOKENS – die einzige Stelle für Farben, Radien und Schatten.
+   Lion OS: dunkler „Kontrollraum“, warmes Gold als Akzent, Ampelfarben nur für Zustände.
+   Kontraste geprüft: Text ≥ 7:1, gedämpfter Text ≥ 4.5:1 auf allen Flächen.
+   ===================================================================== */
+:root {
+  --nacht: #0b0a08;
+  --flaeche: #14120e;
+  --flaeche-2: #1c1914;
+  --flaeche-3: #26221b;
+  --linie: #2f2a21;
+  --linie-hell: #4a4234;
+  --text: #f6f1e6;
+  --gedaempft: #b3aa98;
+  --gold: #e8b73a;
+  --gold-hell: #f3d27a;
+  --gold-dunkel: #a67912;
+  --auf-gold: #1a1204;
+  --fokus: #8ab4ff;
+
+  --gruen: #4ade80;
+  --gruen-flaeche: #0f2417;
+  --gelb: #facc15;
+  --gelb-flaeche: #2a230b;
+  --rot: #f87171;
+  --rot-flaeche: #2c1212;
+
+  --schatten: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 32px rgba(0, 0, 0, 0.35);
+  --schatten-gold: 0 8px 28px rgba(232, 183, 58, 0.22);
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-nacht: var(--nacht);
+  --color-flaeche: var(--flaeche);
+  --color-flaeche-2: var(--flaeche-2);
+  --color-flaeche-3: var(--flaeche-3);
+  --color-linie: var(--linie);
+  --color-linie-hell: var(--linie-hell);
+  --color-text: var(--text);
+  --color-gedaempft: var(--gedaempft);
+  --color-gold: var(--gold);
+  --color-gold-hell: var(--gold-hell);
+  --color-gold-dunkel: var(--gold-dunkel);
+  --color-auf-gold: var(--auf-gold);
+  --color-fokus: var(--fokus);
+  --color-gruen: var(--gruen);
+  --color-gruen-flaeche: var(--gruen-flaeche);
+  --color-gelb: var(--gelb);
+  --color-gelb-flaeche: var(--gelb-flaeche);
+  --color-rot: var(--rot);
+  --color-rot-flaeche: var(--rot-flaeche);
+
+  --font-display: var(--font-display-face), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-body-face), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, monospace;
+
+  --radius-karte: 1.25rem;
+  --radius-feld: 0.75rem;
+
+  --shadow-karte: var(--schatten);
+  --shadow-gold: var(--schatten-gold);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    background: var(--nacht);
+  }
+
+  body {
+    min-height: 100dvh;
+    color: var(--text);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+    /* Feines Raster + Goldschein oben links: „Kontrollraum“, ohne vom Inhalt abzulenken. */
+    background:
+      radial-gradient(55rem 35rem at -10% -10%, rgba(232, 183, 58, 0.09), transparent 60%),
+      radial-gradient(40rem 30rem at 110% 0%, rgba(232, 183, 58, 0.04), transparent 60%),
+      linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px) 0 0 / 100% 32px,
+      linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px) 0 0 / 32px 100%,
+      var(--nacht);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--fokus);
+    outline-offset: 3px;
+    border-radius: 0.5rem;
+  }
+
+  ::selection {
+    background: var(--gold);
+    color: var(--auf-gold);
+  }
+
+  code,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+  }
+
+  dialog::backdrop {
+    background: rgba(5, 4, 3, 0.72);
+    backdrop-filter: blur(4px);
+  }
+}
+
+.text-gold-verlauf {
+  background: linear-gradient(100deg, var(--gold-hell), var(--gold) 55%, var(--gold-dunkel));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Pulsierender Statuspunkt für laufende Aktionen */
+@keyframes puls {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  70% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.puls {
+  animation: puls 1.6s ease-out infinite;
+}
+
+@keyframes einblenden {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.einblenden {
+  animation: einblenden 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

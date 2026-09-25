@@ -5,7 +5,18 @@
 Lion OS macht aus einem Mini-PC einen privaten Heimserver – so einfach wie ein Smartphone:
 Apps mit einem Klick installieren, automatische Backups, sicher ab Werk.
 
-> Status: **Planung / Phase 1 (MVP) in Arbeit.** Noch nicht für den produktiven Einsatz.
+> Status: **Phase 1 (MVP) in Arbeit.** Installer, API, App-Verwaltung und Oberfläche laufen; Backup folgt.
+> Noch nicht für den produktiven Einsatz.
+
+## Schnellstart (Debian 13)
+
+```bash
+git clone https://github.com/Melekay/lion-os.git && cd lion-os
+sudo ./installer/install.sh
+```
+
+Danach `https://<IP-des-Servers>` im Heimnetz öffnen und mit dem Einrichtungscode vom Ende der Installation das Admin-Konto anlegen.
+Details: [installer/README.md](installer/README.md) · API: [core/README.md](core/README.md) · Oberfläche: [ui/README.md](ui/README.md)
 
 ## Lion OS und Lion Box
 

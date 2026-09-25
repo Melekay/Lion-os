@@ -8,6 +8,7 @@
 #   - Systembenutzer „lion“ und die Ordnerstruktur
 #   - Caddy als Reverse Proxy mit lokalem HTTPS (eigene Zertifizierungsstelle)
 #   - Node.js (NodeSource-Repository) und lion-core als systemd-Dienst „lion-core“
+#   - Weboberfläche lion-ui (statisch gebaut, von Caddy ausgeliefert)
 #   - systemd-Dienst „lion“, der den Stack startet
 #
 # Das Skript ist idempotent: Mehrfaches Ausführen ändert nichts Bestehendes
@@ -428,13 +429,24 @@ ${liste} {
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy no-referrer
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		# Next.js bettet kleine Start-Skripte ein, daher 'unsafe-inline'; fremde Quellen sind ausgeschlossen.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 	}
 	# API von lion-core (nur auf 127.0.0.1 erreichbar; Caddy läuft im Host-Netz)
 	handle /api/* {
 		reverse_proxy 127.0.0.1:${CORE_PORT}
 	}
+	# Oberfläche (lion-ui): Dateinamen unter /_next/static ändern sich mit jedem Build.
 	handle {
 		root * /srv/www
+		@unveraenderlich path /_next/static/*
+		header @unveraenderlich Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+	handle_errors 404 {
+		root * /srv/www
+		rewrite * /404.html
 		file_server
 	}
 }
@@ -473,34 +485,6 @@ volumes:
 EOF
 }
 
-render_startseite() {
-  cat <<EOF
-<!doctype html>
-<html lang="de">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lion OS</title>
-<style>
-  :root { color-scheme: dark; }
-  body { margin:0; min-height:100vh; display:grid; place-items:center; background:#0d0c09; color:#f6f1e6; font-family:system-ui,sans-serif; }
-  main { text-align:center; padding:2rem; }
-  h1 { font-size:clamp(2.5rem,8vw,4.5rem); margin:0; letter-spacing:-.03em; }
-  h1 span { color:#e3b12e; }
-  p { color:#b8b09f; font-size:1.125rem; }
-</style>
-</head>
-<body>
-<main>
-  <h1>Lion <span>OS</span></h1>
-  <p>Installation erfolgreich. Version ${LION_VERSION}.</p>
-  <p>Die Oberfläche folgt in der nächsten Version.</p>
-</main>
-</body>
-</html>
-EOF
-}
-
 # Liste der Adressen für lion-core (App-Einträge in Caddy nutzen dieselben Adressen).
 schreibe_adressen() {
   site_adressen | schreibe_datei "$(pfad_etc)/adressen" 0644
@@ -532,10 +516,45 @@ installiere_core() {
   ausfuehren rm -rf "$ziel/src" "$ziel/dist"
   ausfuehren cp -a "$quelle/src" "$quelle/package.json" "$quelle/package-lock.json" \
     "$quelle/tsconfig.json" "$quelle/tsconfig.build.json" "$ziel/"
-  ausfuehren env -C "$ziel" "$npm" ci --ignore-scripts --no-audit --no-fund --loglevel=error
-  ausfuehren env -C "$ziel" "$npm" run --silent build
-  ausfuehren env -C "$ziel" "$npm" prune --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error
+  # PATH zuerst mit dem Node von Lion OS: npm startet über „#!/usr/bin/env node“.
+  local pfad
+  pfad="$(dirname "$LION_NODE"):$PATH"
+  ausfuehren env -C "$ziel" PATH="$pfad" "$npm" ci --ignore-scripts --no-audit --no-fund --loglevel=error
+  ausfuehren env -C "$ziel" PATH="$pfad" "$npm" run --silent build
+  ausfuehren env -C "$ziel" PATH="$pfad" "$npm" prune --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error
   ok "lion-core gebaut ($ziel)."
+}
+
+# Baut die Oberfläche in einem Wegwerf-Ordner und legt nur das Ergebnis (statische Dateien)
+# nach /opt/lion/stack/www. Nur Build-Pakete (--omit=dev), keine Paket-Skripte, keine Telemetrie.
+installiere_ui() {
+  local quelle bau www npm
+  quelle="$(pfad_repo)/ui"
+  www="$(pfad_stack)/www"
+  npm="$(dirname "$LION_NODE")/npm"
+  [[ -f "$quelle/package-lock.json" ]] || fehler "lion-ui nicht gefunden ($quelle)."
+  info "Baue die Oberfläche (dauert etwa eine Minute) …"
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf '  [probelauf] baue %s und kopiere out/ nach %s\n' "$quelle" "$www"
+    ok "Oberfläche gebaut."
+    return 0
+  fi
+  bau="$(mktemp -d /var/tmp/lion-ui.XXXXXX)"
+  cp -a "$quelle/app" "$quelle/components" "$quelle/lib" "$quelle/public" "$quelle/package.json" \
+    "$quelle/package-lock.json" "$quelle/next.config.ts" "$quelle/tsconfig.json" "$quelle/postcss.config.mjs" "$bau/"
+  # PATH zuerst mit dem Node von Lion OS: npm und next starten über „#!/usr/bin/env node“.
+  env -C "$bau" PATH="$(dirname "$LION_NODE"):$PATH" NEXT_TELEMETRY_DISABLED=1 \
+    "$npm" ci --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error
+  env -C "$bau" PATH="$(dirname "$LION_NODE"):$PATH" NEXT_TELEMETRY_DISABLED=1 \
+    "$LION_NODE" node_modules/next/dist/bin/next build >/dev/null
+  [[ -f "$bau/out/index.html" ]] || fehler "Oberfläche konnte nicht gebaut werden."
+  # Inhalt ersetzen, nicht den Ordner: Caddy hat genau diesen Ordner eingebunden.
+  install -d -m 0755 "$www"
+  find "$www" -mindepth 1 -delete
+  cp -a "$bau/out/." "$www/"
+  chmod -R u=rwX,go=rX "$www"
+  rm -rf "$bau"
+  ok "Oberfläche gebaut ($www)."
 }
 
 schreibe_stack() {
@@ -543,7 +562,6 @@ schreibe_stack() {
   stack="$(pfad_stack)"
   render_caddyfile | schreibe_datei "$stack/Caddyfile" 0644
   render_compose | schreibe_datei "$stack/compose.yaml" 0644
-  render_startseite | schreibe_datei "$stack/www/index.html" 0644
   schreibe_adressen
   ok "Stack-Dateien geschrieben ($stack)."
 }
@@ -686,6 +704,7 @@ main() {
   schreibe_stack
   kopiere_katalog
   installiere_core
+  installiere_ui
   richte_dienst_ein
   warte_auf_start
   zusammenfassung

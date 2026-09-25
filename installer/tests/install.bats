@@ -189,12 +189,11 @@ AUSGABE
   [ "$output" = "192.168.1.20" ]
 }
 
-@test "schreibe_stack legt Caddyfile, compose.yaml, Startseite und Adressliste an" {
+@test "schreibe_stack legt Caddyfile, compose.yaml und Adressliste an" {
   schreibe_stack
   grep -qx "localhost" "$LION_ROOT/etc/lion/adressen"
   [ -f "$LION_ROOT/opt/lion/stack/Caddyfile" ]
   [ -f "$LION_ROOT/opt/lion/stack/compose.yaml" ]
-  grep -q "Lion" "$LION_ROOT/opt/lion/stack/www/index.html"
 }
 
 @test "kopiere_katalog kopiert die App-Vorlagen" {
@@ -299,4 +298,37 @@ AUSGABE
   run render_core_unit
   [[ "$output" == *"Requires=docker.service"* ]]
   [[ "$output" == *"After=docker.service lion.service"* ]]
+}
+
+# --- Oberfläche ------------------------------------------------------------
+
+@test "Caddy setzt strenge Sicherheits-Header (CSP ohne fremde Quellen)" {
+  run render_caddyfile
+  [[ "$output" == *"Content-Security-Policy \"default-src 'self';"* ]]
+  [[ "$output" == *"frame-ancestors 'none'"* ]]
+  [[ "$output" == *"object-src 'none'"* ]]
+  [[ "$output" == *"Permissions-Policy"* ]]
+  [[ "$output" != *"https://"*"script-src"* ]]
+}
+
+@test "Caddy cacht nur unveränderliche Dateien lange und zeigt eine eigene 404-Seite" {
+  run render_caddyfile
+  [[ "$output" == *"@unveraenderlich path /_next/static/*"* ]]
+  [[ "$output" == *"immutable"* ]]
+  [[ "$output" == *"handle_errors 404"* ]]
+  [[ "$output" == *"rewrite * /404.html"* ]]
+}
+
+@test "installiere_ui zeigt im Probelauf nur an, was passieren würde" {
+  DRY_RUN=1 run installiere_ui
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[probelauf] baue"* ]]
+  [ ! -e "$LION_ROOT/opt/lion/stack/www" ]
+}
+
+@test "installiere_ui baut ohne Entwicklungspakete, ohne Paket-Skripte und ohne Telemetrie" {
+  run declare -f installiere_ui
+  [[ "$output" == *"--omit=dev"* ]]
+  [[ "$output" == *"--ignore-scripts"* ]]
+  [[ "$output" == *"NEXT_TELEMETRY_DISABLED=1"* ]]
 }
