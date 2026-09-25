@@ -2,50 +2,56 @@
 
 /* =====================================================================
    DESIGN-TOKENS – die einzige Stelle für Farben, Radien und Schatten.
-   Lion OS: dunkler „Kontrollraum“, warmes Gold als Akzent, Ampelfarben nur für Zustände.
-   Kontraste geprüft: Text ≥ 7:1, gedämpfter Text ≥ 4.5:1 auf allen Flächen.
+   Lion OS: heller „Morgenlicht“-Hintergrund, Milchglas-Karten, warmes Amber als Akzent,
+   Ampelfarben nur für Zustände. Kontraste (WCAG AA) prüft axe in den Browser-Tests.
    ===================================================================== */
 :root {
-  --nacht: #0b0a08;
-  --flaeche: #14120e;
-  --flaeche-2: #1c1914;
-  --flaeche-3: #26221b;
-  --linie: #2f2a21;
-  --linie-hell: #4a4234;
-  --text: #f6f1e6;
-  --gedaempft: #b3aa98;
-  --gold: #e8b73a;
-  --gold-hell: #f3d27a;
-  --gold-dunkel: #a67912;
-  --auf-gold: #1a1204;
-  --fokus: #8ab4ff;
+  --grund: #eef2f7; /* Grundfläche: Seite, Eingabefelder, Code */
+  --flaeche: #ffffff; /* Karten (meist halbdurchsichtig als Milchglas) */
+  --flaeche-2: #f6f8fb;
+  --flaeche-3: #eceff5;
+  --linie: #e1e6ee;
+  --linie-hell: #c9d1dd;
+  --glas: rgba(255, 255, 255, 0.78); /* heller Rand der Milchglas-Karten */
+  --text: #111827;
+  --gedaempft: #4b5563;
+  --gold: #f5a524; /* Flächen: Knöpfe, Auswahl, Ringe */
+  --gold-hell: #ffbd4a;
+  --gold-dunkel: #c77700;
+  --auf-gold: #221400;
+  --akzent: #a14f00; /* Akzent als Text: ≥ 5:1 auf Weiß */
+  --akzent-stark: #7c3d00;
+  --fokus: #2563eb;
 
-  --gruen: #4ade80;
-  --gruen-flaeche: #0f2417;
-  --gelb: #facc15;
-  --gelb-flaeche: #2a230b;
-  --rot: #f87171;
-  --rot-flaeche: #2c1212;
+  --gruen: #15803d;
+  --gruen-flaeche: #e7f8ee;
+  --gelb: #a15c07;
+  --gelb-flaeche: #fff6db;
+  --rot: #b91c1c;
+  --rot-flaeche: #fdecec;
 
-  --schatten: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 32px rgba(0, 0, 0, 0.35);
-  --schatten-gold: 0 8px 28px rgba(232, 183, 58, 0.22);
+  --schatten: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 18px 40px -18px rgba(30, 41, 59, 0.22), 0 2px 6px rgba(30, 41, 59, 0.05);
+  --schatten-gold: 0 10px 24px -10px rgba(222, 138, 0, 0.55);
 
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 @theme inline {
-  --color-nacht: var(--nacht);
+  --color-grund: var(--grund);
   --color-flaeche: var(--flaeche);
   --color-flaeche-2: var(--flaeche-2);
   --color-flaeche-3: var(--flaeche-3);
   --color-linie: var(--linie);
   --color-linie-hell: var(--linie-hell);
+  --color-glas: var(--glas);
   --color-text: var(--text);
   --color-gedaempft: var(--gedaempft);
   --color-gold: var(--gold);
   --color-gold-hell: var(--gold-hell);
   --color-gold-dunkel: var(--gold-dunkel);
   --color-auf-gold: var(--auf-gold);
+  --color-akzent: var(--akzent);
+  --color-akzent-stark: var(--akzent-stark);
   --color-fokus: var(--fokus);
   --color-gruen: var(--gruen);
   --color-gruen-flaeche: var(--gruen-flaeche);
@@ -68,7 +74,7 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
-    background: var(--nacht);
+    background: var(--grund);
   }
 
   body {
@@ -76,14 +82,13 @@
     color: var(--text);
     font-family: var(--font-sans);
     text-rendering: optimizeLegibility;
-    /* Dunkle Fläche mit weichen Lichtstreifen und Goldschein – ruhig, damit Kacheln im Vordergrund stehen. */
+    /* Morgenlicht: weiche Farbflächen (Apricot, Himmel, Lavendel, Mint) hinter Milchglas-Karten. */
     background:
-      radial-gradient(55rem 35rem at -10% -10%, rgba(232, 183, 58, 0.08), transparent 60%),
-      linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.035) 44%, transparent 50%),
-      linear-gradient(115deg, transparent 58%, rgba(232, 183, 58, 0.035) 62%, transparent 66%),
-      linear-gradient(115deg, transparent 72%, rgba(255, 255, 255, 0.025) 75%, transparent 78%),
-      radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px,
-      var(--nacht);
+      radial-gradient(60rem 42rem at -8% -12%, #ffd08f 0%, transparent 62%),
+      radial-gradient(52rem 40rem at 105% -5%, #c3d9ff 0%, transparent 60%),
+      radial-gradient(58rem 46rem at 92% 108%, #ddcdff 0%, transparent 62%),
+      radial-gradient(48rem 40rem at -6% 104%, #c2ecdf 0%, transparent 60%),
+      var(--grund);
     background-attachment: fixed;
   }
 
@@ -112,13 +117,13 @@
   }
 
   dialog::backdrop {
-    background: rgba(5, 4, 3, 0.72);
-    backdrop-filter: blur(4px);
+    background: rgba(17, 24, 39, 0.28);
+    backdrop-filter: blur(6px);
   }
 }
 
-.text-gold-verlauf {
-  background: linear-gradient(100deg, var(--gold-hell), var(--gold) 55%, var(--gold-dunkel));
+.text-akzent-verlauf {
+  background: linear-gradient(100deg, var(--gold-dunkel), var(--akzent) 60%, var(--akzent-stark));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

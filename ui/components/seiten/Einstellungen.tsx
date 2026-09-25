@@ -14,10 +14,10 @@ import { Feld, Hinweis, Knopf, Lader, SeitenKopf, StatusPille } from "../ui";
 function Abschnitt({ titel, icon: Icon, text, children }: { titel: string; icon: typeof Server; text?: string; children: React.ReactNode }) {
   const id = useId();
   return (
-    <section aria-labelledby={id} className="rounded-karte border border-white/[0.06] bg-flaeche/80 p-5 shadow-karte backdrop-blur-md">
+    <section aria-labelledby={id} className="rounded-karte border border-glas bg-flaeche/80 p-5 shadow-karte backdrop-blur-md">
       <div className="mb-5 flex items-start gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-flaeche-2" aria-hidden="true">
-          <Icon className="h-5 w-5 text-gold" />
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-glas bg-flaeche-2" aria-hidden="true">
+          <Icon className="h-5 w-5 text-akzent" />
         </span>
         <div>
           <h2 id={id} className="text-lg font-semibold">
@@ -72,7 +72,7 @@ function DieseBox({ e }: { e: EinstellungenAntwort }) {
         </Knopf>
       </form>
 
-      <dl className="mt-6 space-y-4 border-t border-white/[0.06] pt-5 text-sm">
+      <dl className="mt-6 space-y-4 border-t border-linie pt-5 text-sm">
         <div className="flex justify-between gap-4">
           <dt className="text-gedaempft">Version</dt>
           <dd className="font-mono">{e.version}</dd>
@@ -86,7 +86,7 @@ function DieseBox({ e }: { e: EinstellungenAntwort }) {
                 <li key={a}>
                   <a
                     href={`https://${a}`}
-                    className="inline-flex items-center gap-1.5 break-all font-mono text-gold hover:text-gold-hell"
+                    className="inline-flex items-center gap-1.5 break-all font-mono text-akzent hover:text-akzent-stark"
                     rel="noopener noreferrer"
                     target="_blank"
                   >
@@ -256,7 +256,7 @@ export function Einstellungen() {
             <p className="text-sm leading-relaxed text-text/90">
               Updates per Knopfdruck kommen in einer späteren Version. Bis dahin auf dem Server im Lion-OS-Ordner:
             </p>
-            <pre className="mt-3 overflow-x-auto rounded-feld border border-white/[0.06] bg-nacht/70 p-3 font-mono text-xs">
+            <pre className="mt-3 overflow-x-auto rounded-feld border border-glas bg-grund/70 p-3 font-mono text-xs">
               git pull{"\n"}sudo ./installer/install.sh
             </pre>
             <p className="mt-2 text-xs text-gedaempft">Deine Einstellungen, Apps und Daten bleiben dabei erhalten.</p>

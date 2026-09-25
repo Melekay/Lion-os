@@ -49,7 +49,7 @@ export function Karte({
   id?: string;
 }) {
   return (
-    <Tag id={id} className={`rounded-karte border border-white/[0.06] bg-flaeche/80 shadow-karte backdrop-blur-md ${className}`}>
+    <Tag id={id} className={`rounded-karte border border-glas bg-flaeche/80 shadow-karte backdrop-blur-md ${className}`}>
       {children}
     </Tag>
   );
@@ -73,7 +73,7 @@ export function Feld({
         id={id}
         aria-invalid={fehler ? true : undefined}
         aria-describedby={beschreibung}
-        className={`block min-h-12 w-full rounded-feld border border-linie-hell bg-nacht/60 px-3.5 text-base text-text placeholder:text-gedaempft/70 transition focus:border-gold focus:outline-none focus-visible:outline-3 focus-visible:outline-fokus aria-[invalid=true]:border-rot ${className}`}
+        className={`block min-h-12 w-full rounded-feld border border-linie-hell bg-grund/60 px-3.5 text-base text-text placeholder:text-gedaempft/70 transition focus:border-gold focus:outline-none focus-visible:outline-3 focus-visible:outline-fokus aria-[invalid=true]:border-rot ${className}`}
         {...rest}
       />
       {hilfe && (
@@ -94,7 +94,7 @@ const HINWEIS = {
   gruen: { klasse: "border-gruen/40 bg-gruen-flaeche", icon: CheckCircle2, farbe: "text-gruen" },
   gelb: { klasse: "border-gelb/40 bg-gelb-flaeche", icon: AlertTriangle, farbe: "text-gelb" },
   rot: { klasse: "border-rot/40 bg-rot-flaeche", icon: XCircle, farbe: "text-rot" },
-  info: { klasse: "border-linie-hell bg-flaeche-2", icon: Info, farbe: "text-gold" },
+  info: { klasse: "border-linie-hell bg-flaeche-2", icon: Info, farbe: "text-akzent" },
 } as const;
 
 /** `rolle`: Standard ist eine Live-Meldung (alert/status). Für Hinweise, die schon beim Laden dastehen, „note“ nehmen. */
@@ -127,12 +127,12 @@ const PUNKT: Record<Ton, string> = {
   gelb: "bg-gelb text-gelb",
   rot: "bg-rot text-rot",
   neutral: "bg-gedaempft text-gedaempft",
-  arbeitet: "bg-gold text-gold puls",
+  arbeitet: "bg-gold text-akzent puls",
 };
 
 export function StatusPille({ ton, children }: { ton: Ton; children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-linie bg-nacht/50 px-2.5 py-1 text-xs font-semibold">
+    <span className="inline-flex items-center gap-2 rounded-full border border-linie bg-grund/50 px-2.5 py-1 text-xs font-semibold">
       <span className={`h-2 w-2 rounded-full ${PUNKT[ton]}`} aria-hidden="true" />
       {children}
     </span>
@@ -165,7 +165,7 @@ export function Messbalken({ anteil, ton, label }: { anteil: number; ton: "gruen
 export function Lader({ text, vollbild = false }: { text: string; vollbild?: boolean }) {
   return (
     <div role="status" className={`flex items-center justify-center gap-3 text-gedaempft ${vollbild ? "min-h-dvh" : "py-16"}`}>
-      <Loader2 className="h-5 w-5 animate-spin text-gold" aria-hidden="true" />
+      <Loader2 className="h-5 w-5 animate-spin text-akzent" aria-hidden="true" />
       <span>{text}</span>
     </div>
   );

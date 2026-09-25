@@ -33,9 +33,9 @@ const SEITEN: Record<string, { titel: string; inhalt: () => React.ReactNode }> =
 
 function DemoLeiste({ onZurueckgesetzt }: { onZurueckgesetzt: () => void }) {
   return (
-    <div className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-gold/30 bg-nacht/95 px-4 py-2 text-center text-xs text-text/90 backdrop-blur">
+    <div className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-gold/30 bg-grund/95 px-4 py-2 text-center text-xs text-text/90 backdrop-blur">
       <span>
-        <strong className="text-gold">Demo</strong> mit Beispieldaten – nichts wird wirklich installiert. Anmelden geht mit jedem Passwort.
+        <strong className="text-akzent">Demo</strong> mit Beispieldaten – nichts wird wirklich installiert. Anmelden geht mit jedem Passwort.
       </span>
       <button
         type="button"

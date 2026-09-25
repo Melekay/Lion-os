@@ -70,9 +70,9 @@ export function AppKarte({
 
       {stufe && (
         <p className="flex gap-2 rounded-feld border border-gold/30 bg-gold/5 p-3 text-sm">
-          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-gold" aria-hidden="true" />
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-akzent" aria-hidden="true" />
           <span>
-            <strong className="font-semibold text-gold">{stufe.text}:</strong> {stufe.erklaerung}
+            <strong className="font-semibold text-akzent">{stufe.text}:</strong> {stufe.erklaerung}
           </span>
         </p>
       )}
@@ -90,8 +90,8 @@ export function AppKarte({
       {fehler && <Hinweis ton="rot">{fehler}</Hinweis>}
 
       {app.hinweise.length > 0 && (
-        <details className="group rounded-feld border border-linie bg-nacht/40 p-3 text-sm">
-          <summary className="cursor-pointer font-semibold marker:text-gold">Wichtige Hinweise ({app.hinweise.length})</summary>
+        <details className="group rounded-feld border border-linie bg-grund/40 p-3 text-sm">
+          <summary className="cursor-pointer font-semibold marker:text-akzent">Wichtige Hinweise ({app.hinweise.length})</summary>
           <ul className="mt-2 list-disc space-y-1.5 pl-5 text-text/90">
             {app.hinweise.map((h) => (
               <li key={h}>{h}</li>

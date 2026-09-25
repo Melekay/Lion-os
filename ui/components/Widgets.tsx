@@ -18,7 +18,7 @@ export function Widget({ titel, aktion, children, className = "" }: { titel?: st
   return (
     <section
       aria-label={titel}
-      className={`rounded-karte border border-white/[0.06] bg-flaeche/80 p-5 shadow-karte backdrop-blur-md ${className}`}
+      className={`rounded-karte border border-glas bg-flaeche/80 p-5 shadow-karte backdrop-blur-md ${className}`}
     >
       {titel && (
         <div className="mb-4 flex items-center justify-between gap-2">
@@ -91,7 +91,7 @@ export function SystemWidget({ s }: { s: Systemstatus }) {
         <Ring anteil={k.cpu.anteil} ton={k.cpu.ton} wert={k.cpu.wert.replace(" ", "")} name="CPU" label="Prozessor-Auslastung" unter={k.temperatur ? k.temperatur.wert : `${s.cpuKerne} Kerne`} />
         <Ring anteil={k.ram.anteil} ton={k.ram.ton} wert={k.ram.wert.replace(" ", "")} name="RAM" label="Arbeitsspeicher belegt" unter={`${zahl(k.ramGesamtGb, 0)} GB`} />
       </div>
-      <div className="mt-4 space-y-2 border-t border-white/[0.06] pt-4 text-sm">
+      <div className="mt-4 space-y-2 border-t border-linie pt-4 text-sm">
         <p className="flex items-center gap-2 font-semibold">
           <span className={`h-2.5 w-2.5 rounded-full ${AMPEL_PUNKT[s.ampel]}`} aria-hidden="true" />
           {AMPEL_TEXT[s.ampel].titel}
@@ -166,20 +166,20 @@ export function NetzwerkWidget({ verlauf }: { verlauf: Verlauf }) {
             aria-label={`Netzwerk-Verlauf. Empfangen ${rate(letzter?.runter ?? 0)}, gesendet ${rate(letzter?.hoch ?? 0)}.`}
           >
             {[10, 20, 30].map((y) => (
-              <line key={y} x1="0" x2="100" y1={y} y2={y} className="stroke-white/[0.06]" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
+              <line key={y} x1="0" x2="100" y1={y} y2={y} className="stroke-slate-900/[0.07]" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
             ))}
             {runter && <polyline points={runter} fill="none" className="stroke-gold" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />}
-            {hoch && <polyline points={hoch} fill="none" className="stroke-sky-400" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />}
+            {hoch && <polyline points={hoch} fill="none" className="stroke-sky-600" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />}
           </svg>
           {p.length < 2 && <p className="text-xs text-gedaempft">Messe … der Verlauf erscheint in wenigen Sekunden.</p>}
           <p className="mt-2 flex gap-5 text-sm tabular-nums">
             <span className="flex items-center gap-1.5">
-              <ArrowDown className="h-4 w-4 text-gold" aria-hidden="true" />
+              <ArrowDown className="h-4 w-4 text-akzent" aria-hidden="true" />
               <span className="sr-only">Empfangen:</span>
               {rate(letzter?.runter ?? 0)}
             </span>
             <span className="flex items-center gap-1.5">
-              <ArrowUp className="h-4 w-4 text-sky-400" aria-hidden="true" />
+              <ArrowUp className="h-4 w-4 text-sky-600" aria-hidden="true" />
               <span className="sr-only">Gesendet:</span>
               {rate(letzter?.hoch ?? 0)}
             </span>
@@ -195,7 +195,7 @@ export function AktivitaetWidget({ eintraege }: { eintraege: AuditEintrag[] | un
     <Widget
       titel="Aktivität"
       aktion={
-        <Link href="/protokoll/" className="inline-flex items-center gap-1 rounded-lg text-sm font-semibold text-gold hover:text-gold-hell">
+        <Link href="/protokoll/" className="inline-flex items-center gap-1 rounded-lg text-sm font-semibold text-akzent hover:text-akzent-stark">
           Protokoll <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       }

@@ -35,10 +35,10 @@ export function Apps() {
       />
       <ul className="mb-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gedaempft">
         <li className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-gold" aria-hidden="true" /> Vor der Installation automatisch geprüft
+          <ShieldCheck className="h-4 w-4 text-akzent" aria-hidden="true" /> Vor der Installation automatisch geprüft
         </li>
         <li className="flex items-center gap-2">
-          <Lock className="h-4 w-4 text-gold" aria-hidden="true" /> Eigener HTTPS-Port pro App
+          <Lock className="h-4 w-4 text-akzent" aria-hidden="true" /> Eigener HTTPS-Port pro App
         </li>
       </ul>
       {fehler && <Hinweis ton="rot" titel="Apps konnten nicht geladen werden">{fehler}</Hinweis>}
