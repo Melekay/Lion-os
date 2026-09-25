@@ -76,9 +76,15 @@ sudo systemctl is-active --quiet lion-helper || fehler "lion-helper läuft nicht
 rechte="$(sudo stat -c '%a %U %G' /run/lion-helper/helfer.sock)"
 [[ "$rechte" == "660 root lion" ]] || fehler "Socket-Rechte erwartet „660 root lion“, bekommen „$rechte“."
 # lion-helper führt als root Code aus /opt/lion/core aus – lion darf dort nichts ändern.
-if sudo -u lion test -w /opt/lion/core/dist/helfer/index.js || sudo -u lion test -w /opt/lion/core/dist/helfer; then
-  fehler "lion darf den Code von lion-helper ändern – das wäre ein Weg zu root."
-fi
+# Geprüft wird der ganze Weg (Ordner darüber zählen mit) und jede Datei darunter.
+for pfad in / /opt /opt/lion; do
+  sudo -u lion test -w "$pfad" && fehler "lion darf in $pfad schreiben ($(sudo stat -c '%a %U:%G' "$pfad")) – lion-helper wäre angreifbar."
+done
+# Symbolische Links haben immer die Rechte 777 – Linux wertet sie nicht aus; bei ihnen zählt nur der Besitzer.
+fremd="$(sudo find /opt/lion/core \( ! -user root -o \( ! -type l -perm /022 \) \) -printf '%M %u %p\n' | head -n 5)"
+[[ -z "$fremd" ]] || fehler "Nicht nur root darf den Code von lion-helper ändern:
+$fremd"
+sudo -u lion test -w /opt/lion/core/dist/helfer/index.js && fehler "lion darf den Code von lion-helper ändern – das wäre ein Weg zu root."
 code="$(curl -sk -o /dev/null -w '%{http_code}' -b "$KEKSE" "$BASIS/api/datentraeger")"
 [[ "$code" == "200" ]] || fehler "/api/datentraeger erwartet 200, bekommen $code."
 

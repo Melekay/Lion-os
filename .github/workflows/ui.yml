@@ -5,8 +5,9 @@ on:
   push:
     branches: [main]
     paths: ["ui/**", "core/**", "apps/**", ".github/workflows/ui.yml"]
+  # Ohne paths-Filter: Die Prüfungen sind im Regelwerk für main Pflicht und
+  # müssen darum bei jedem Pull Request berichten, sonst bleibt „Mergen“ gesperrt.
   pull_request:
-    paths: ["ui/**", "core/**", "apps/**", ".github/workflows/ui.yml"]
 
 permissions:
   contents: read
