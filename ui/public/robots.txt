@@ -1,0 +1,3 @@
+# Lion OS gehört ins Heimnetz, nicht in Suchmaschinen.
+User-agent: *
+Disallow: /

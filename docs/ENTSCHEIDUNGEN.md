@@ -26,6 +26,9 @@ Jede Architekturentscheidung wird hier mit Datum und Begründung festgehalten.
 | 20 | 25.09.2026 | Node.js 24 aus dem **NodeSource-Repository** | Debian 13 liefert Node 20 (zu alt für `node:sqlite`); signiertes apt-Repository bekommt Sicherheitsupdates wie der Rest des Systems | Node-Tarball (keine automatischen Updates), Node 22 (Support endet April 2027) |
 | 21 | 25.09.2026 | **Einrichtungscode** für den ersten Admin | Sonst kann jeder im Heimnetz Lion OS vor dem Besitzer einrichten; für die Lion Box druckbar | Erster gewinnt (wie viele Router), Admin im Installer anlegen |
 | 22 | 25.09.2026 | lion-core wird auf dem Gerät gebaut, `npm ci --ignore-scripts` | Keine Paket-Skripte mit root-Rechten; Build-Artefakte folgen später mit Releases | Fertige Pakete (.deb) – sinnvoll ab dem ersten Release |
+| 23 | 25.09.2026 | lion-ui als **statischer Next.js-Export**, von Caddy ausgeliefert, gleiche Adresse wie `/api` | Kein zusätzlicher Node-Server, kein CORS, Sitzungs-Cookie bleibt `SameSite=Strict`; Oberfläche und API getrennt testbar | Next.js-Server (mehr RAM, zweiter Dienst), UI in lion-core ausliefern |
+| 24 | 25.09.2026 | Content-Security-Policy mit `'self'`, Skripte mit `'unsafe-inline'` | Next.js-Export bettet Start-Skripte ein; alle fremden Quellen bleiben ausgeschlossen | Nonces (brauchen einen Server pro Anfrage) |
+| 25 | 25.09.2026 | Oberfläche nur **dunkel**, Schriften selbst gehostet (Space Grotesk, Manrope, JetBrains Mono) | Ein geprüftes Farbschema (Kontrast AA) statt zwei; funktioniert ohne Internet, kein Abruf bei Google | Hell/Dunkel umschaltbar – später möglich, Tokens sind vorbereitet |
 
 ## Offen
 
@@ -33,4 +36,6 @@ Jede Architekturentscheidung wird hier mit Datum und Begründung festgehalten.
 - Markenname nach Recherche bestätigen.
 - Gruppe `docker` kommt einem Root-Zugang nahe. Später einen eng begrenzten `lion-helper` (feste Befehle) oder einen Docker-Socket-Proxy mit Allowlist prüfen.
 - NodeSource-Schlüssel mit dem strengeren apt von Debian 13 (sqv) auf echter Hardware prüfen – die CI läuft auf Ubuntu.
+- lion-ui nutzt ESLint 9, weil `eslint-config-next` 16.3 (eslint-plugin-react) noch nicht mit ESLint 10 läuft. Wechseln, sobald unterstützt (nur Entwicklungswerkzeug, nicht auf dem Gerät).
+- Oberfläche wird auf dem Gerät gebaut (~20 s, ~570 MB vorübergehend). Ab dem ersten Release fertige Dateien ausliefern.
 - `node:sqlite` meldet in Node 22 noch „experimental“ – beobachten; Fallback wäre better-sqlite3.

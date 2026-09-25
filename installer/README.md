@@ -17,7 +17,7 @@ Der Browser warnt beim ersten Besuch, weil Lion OS ein eigenes Zertifikat nutzt 
 Am Ende zeigt der Installer einen **Einrichtungscode** (z. B. `K7QM-4XPA-9TRD`). Du brauchst ihn einmal, um den ersten Admin anzulegen.
 So kann niemand sonst im Heimnetz Lion OS vor dir einrichten. Später wieder anzeigen: `sudo grep LION_SETUP_CODE /etc/lion/lion.env`.
 
-**Fertig, wenn** die Seite „Lion OS – Installation erfolgreich“ erscheint und `https://<IP>/api/health` mit `"ok":true` antwortet.
+**Fertig, wenn** im Browser „Willkommen bei Lion OS“ erscheint. Dort legst du mit dem Einrichtungscode dein Admin-Konto an.
 
 ## Was das Skript tut
 
@@ -29,8 +29,9 @@ So kann niemand sonst im Heimnetz Lion OS vor dir einrichten. Später wieder anz
 | Benutzer | Systembenutzer `lion` (ohne Anmeldung) |
 | Ordner | `/opt/lion` (Programm), `/etc/lion` (Konfiguration, 750), `/var/lib/lion` (Zustand), `/srv/lion/apps` (App-Daten) |
 | Konfiguration | `/etc/lion/lion.env` mit zufälligem Geheimnis und Einrichtungscode, Rechte 600, wird bei erneutem Lauf **nicht** überschrieben |
-| Caddy | Reverse Proxy mit lokalem HTTPS, HTTP→HTTPS-Umleitung, Sicherheits-Header, Container ohne Zusatzrechte |
+| Caddy | Reverse Proxy mit lokalem HTTPS, HTTP→HTTPS-Umleitung, Sicherheits-Header inkl. Content-Security-Policy, Container ohne Zusatzrechte |
 | lion-core | wird nach `/opt/lion/core` gebaut (`npm ci --ignore-scripts`, danach ohne Entwicklungspakete) |
+| Oberfläche | lion-ui wird in einem Wegwerf-Ordner gebaut (`npm ci --omit=dev --ignore-scripts`, ohne Telemetrie); nur die statischen Dateien landen in `/opt/lion/stack/www` |
 | Dienste | `lion` startet den Caddy-Stack, `lion-core` die API – beide beim Booten |
 
 Das Skript ist idempotent: Ein erneuter Lauf repariert die Stack-Dateien, lässt Geheimnisse aber unverändert.

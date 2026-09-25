@@ -1,0 +1,50 @@
+/**
+ * Antworten von lion-core. Spiegel der Typen in core/src (system.ts, apps.ts, audit.ts, server.ts).
+ * Bei Änderungen an der API beide Seiten anpassen.
+ */
+
+export type Ampel = "gruen" | "gelb" | "rot";
+
+export type Hinweis = { bereich: "cpu" | "ram" | "speicher" | "temperatur"; stufe: Ampel; text: string };
+
+export type Systemstatus = {
+  cpuKerne: number;
+  last1: number;
+  ramGesamtMb: number;
+  ramFreiMb: number;
+  speicher: { pfad: string; gesamtGb: number; freiGb: number }[];
+  temperaturC: number | null;
+  laufzeitS: number;
+  ampel: Ampel;
+  hinweise: Hinweis[];
+};
+
+export type AppStatus = "installiere" | "laeuft" | "gestoppt" | "fehler" | "entferne" | "teilweise" | "unbekannt";
+
+export type AppAnsicht = {
+  id: string;
+  name: string;
+  beschreibung: string;
+  kategorie: string;
+  version: string;
+  sicherheitsstufe: "normal" | "sensibel" | "vollzugriff" | string;
+  hinweise: string[];
+  installiert: null | {
+    status: AppStatus;
+    meldung: string | null;
+    adressen: string[];
+    datenordner: string;
+  };
+};
+
+export type AuditEintrag = {
+  id: number;
+  zeit: string;
+  benutzer: string | null;
+  aktion: string;
+  ziel: string | null;
+  ergebnis: "erfolg" | "fehler" | "abgelehnt";
+  details: string | null;
+};
+
+export type SetupStatus = { eingerichtet: boolean; codeNoetig: boolean };
