@@ -377,6 +377,19 @@ test.describe("Einstellungen", () => {
     await barrierefrei(page);
   });
 
+  test("Hintergrund wählen: sofort sichtbar und nach dem Neuladen noch da", async ({ page }) => {
+    await page.goto("/einstellungen/");
+    const wahl = page.getByRole("group", { name: "Hintergrund wählen" });
+    await expect(wahl.getByRole("button", { name: "Sonnenuntergang" })).toHaveAttribute("aria-pressed", "true");
+    await wahl.getByRole("button", { name: "Ozean" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-hintergrund", "ozean");
+    await expect(wahl.getByRole("button", { name: "Ozean" })).toHaveAttribute("aria-pressed", "true");
+    await barrierefrei(page);
+
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-hintergrund", "ozean");
+  });
+
   test("Name der Box speichern: erscheint in der Kopfzeile; Fehler werden angezeigt", async ({ page }) => {
     await page.goto("/einstellungen/");
     const feld = page.getByLabel("Name der Box");

@@ -2,38 +2,72 @@
 
 /* =====================================================================
    DESIGN-TOKENS – die einzige Stelle für Farben, Radien und Schatten.
-   Lion OS: heller „Morgenlicht“-Hintergrund, Milchglas-Karten, warmes Amber als Akzent,
-   Ampelfarben nur für Zustände. Kontraste (WCAG AA) prüft axe in den Browser-Tests.
+   Lion OS: kräftiger Farbverlauf als Hintergrund (wählbar), darüber dunkles Glas.
+   Leuchtende Balken, Amber als Lion-Akzent, Ampelfarben nur für Zustände.
+   Kontraste (WCAG AA) prüft axe in den Browser-Tests.
    ===================================================================== */
 :root {
-  --grund: #eef2f7; /* Grundfläche: Seite, Eingabefelder, Code */
-  --flaeche: #ffffff; /* Karten (meist halbdurchsichtig als Milchglas) */
-  --flaeche-2: #f6f8fb;
-  --flaeche-3: #eceff5;
-  --linie: #e1e6ee;
-  --linie-hell: #c9d1dd;
-  --glas: rgba(255, 255, 255, 0.78); /* heller Rand der Milchglas-Karten */
-  --text: #111827;
-  --gedaempft: #4b5563;
-  --gold: #f5a524; /* Flächen: Knöpfe, Auswahl, Ringe */
-  --gold-hell: #ffbd4a;
-  --gold-dunkel: #c77700;
-  --auf-gold: #221400;
-  --akzent: #a14f00; /* Akzent als Text: ≥ 5:1 auf Weiß */
-  --akzent-stark: #7c3d00;
-  --fokus: #2563eb;
+  --grund: #0b1024; /* Grundfläche: Eingabefelder, Code, Fallback */
+  --flaeche: rgba(13, 20, 43, 0.72); /* Glas der Karten (mit Weichzeichner) */
+  --flaeche-2: rgba(255, 255, 255, 0.08);
+  --flaeche-3: rgba(255, 255, 255, 0.14);
+  --linie: rgba(255, 255, 255, 0.12);
+  --linie-hell: rgba(255, 255, 255, 0.24);
+  --glas: rgba(255, 255, 255, 0.16); /* heller Rand der Glas-Karten */
+  --text: #f8fafc;
+  --gedaempft: #cbd5e1;
+  --gold: #fbbf24; /* Flächen: Knöpfe, Auswahl */
+  --gold-hell: #fcd34d;
+  --gold-dunkel: #d97706;
+  --auf-gold: #1c1100;
+  --akzent: #fcd34d; /* Akzent als Text */
+  --akzent-stark: #fde68a;
+  --fokus: #7dd3fc;
 
-  --gruen: #15803d;
-  --gruen-flaeche: #e7f8ee;
-  --gelb: #a15c07;
-  --gelb-flaeche: #fff6db;
-  --rot: #b91c1c;
-  --rot-flaeche: #fdecec;
+  --gruen: #4ade80;
+  --gruen-flaeche: rgba(34, 197, 94, 0.16);
+  --gelb: #facc15;
+  --gelb-flaeche: rgba(250, 204, 21, 0.14);
+  --rot: #fb7185;
+  --rot-flaeche: rgba(244, 63, 94, 0.16);
 
-  --schatten: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 18px 40px -18px rgba(30, 41, 59, 0.22), 0 2px 6px rgba(30, 41, 59, 0.05);
-  --schatten-gold: 0 10px 24px -10px rgba(222, 138, 0, 0.55);
+  --schatten: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 22px 48px -22px rgba(0, 0, 0, 0.65);
+  --schatten-gold: 0 10px 26px -10px rgba(251, 191, 36, 0.6);
 
-  color-scheme: light;
+  /* Hintergründe (Einstellungen → Hintergrund). Alle dunkel genug für weiße Schrift auf Glas. */
+  --hg-sonnenuntergang:
+    radial-gradient(60rem 38rem at 12% 105%, rgba(255, 140, 50, 0.95), transparent 60%),
+    radial-gradient(55rem 36rem at 88% 100%, rgba(255, 60, 120, 0.85), transparent 58%),
+    radial-gradient(50rem 40rem at 70% 22%, rgba(124, 58, 237, 0.55), transparent 62%),
+    linear-gradient(180deg, #0c1a4a 0%, #2d1b6b 40%, #8f2d6e 72%, #e0603a 100%);
+  --hg-ozean:
+    radial-gradient(55rem 40rem at 8% 8%, rgba(34, 211, 238, 0.55), transparent 60%),
+    radial-gradient(60rem 45rem at 92% 92%, rgba(37, 99, 235, 0.75), transparent 60%),
+    radial-gradient(40rem 30rem at 60% 40%, rgba(16, 185, 129, 0.35), transparent 60%),
+    linear-gradient(160deg, #062a3f 0%, #0a3d62 45%, #0b1e4d 100%);
+  --hg-aurora:
+    radial-gradient(70rem 22rem at 30% 18%, rgba(52, 211, 153, 0.6), transparent 60%),
+    radial-gradient(60rem 26rem at 75% 34%, rgba(168, 85, 247, 0.55), transparent 60%),
+    radial-gradient(50rem 30rem at 50% 105%, rgba(59, 130, 246, 0.4), transparent 60%),
+    linear-gradient(180deg, #050b1f 0%, #0b1533 55%, #101a3a 100%);
+  --hg-nebel:
+    radial-gradient(55rem 40rem at 12% 18%, rgba(236, 72, 153, 0.65), transparent 60%),
+    radial-gradient(60rem 45rem at 88% 28%, rgba(99, 102, 241, 0.65), transparent 60%),
+    radial-gradient(50rem 40rem at 50% 105%, rgba(14, 165, 233, 0.5), transparent 60%),
+    linear-gradient(135deg, #1a0b3d 0%, #2a0f4f 50%, #0f1c4d 100%);
+  --hintergrund: var(--hg-sonnenuntergang);
+
+  color-scheme: dark;
+}
+
+:root[data-hintergrund="ozean"] {
+  --hintergrund: var(--hg-ozean);
+}
+:root[data-hintergrund="aurora"] {
+  --hintergrund: var(--hg-aurora);
+}
+:root[data-hintergrund="nebel"] {
+  --hintergrund: var(--hg-nebel);
 }
 
 @theme inline {
@@ -82,12 +116,10 @@
     color: var(--text);
     font-family: var(--font-sans);
     text-rendering: optimizeLegibility;
-    /* Morgenlicht: weiche Farbflächen (Apricot, Himmel, Lavendel, Mint) hinter Milchglas-Karten. */
+    /* Farbverlauf nach Wahl, darüber ein feines Punktraster für Tiefe. */
     background:
-      radial-gradient(60rem 42rem at -8% -12%, #ffd08f 0%, transparent 62%),
-      radial-gradient(52rem 40rem at 105% -5%, #c3d9ff 0%, transparent 60%),
-      radial-gradient(58rem 46rem at 92% 108%, #ddcdff 0%, transparent 62%),
-      radial-gradient(48rem 40rem at -6% 104%, #c2ecdf 0%, transparent 60%),
+      radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px) 0 0 / 22px 22px,
+      var(--hintergrund),
       var(--grund);
     background-attachment: fixed;
   }
@@ -117,13 +149,13 @@
   }
 
   dialog::backdrop {
-    background: rgba(17, 24, 39, 0.28);
-    backdrop-filter: blur(6px);
+    background: rgba(3, 6, 20, 0.55);
+    backdrop-filter: blur(8px);
   }
 }
 
 .text-akzent-verlauf {
-  background: linear-gradient(100deg, var(--gold-dunkel), var(--akzent) 60%, var(--akzent-stark));
+  background: linear-gradient(100deg, var(--akzent-stark), var(--gold) 55%, var(--gold-dunkel));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -168,4 +200,18 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Vorschau-Kacheln für die Hintergrund-Wahl */
+.hg-sonnenuntergang {
+  background: var(--hg-sonnenuntergang);
+}
+.hg-ozean {
+  background: var(--hg-ozean);
+}
+.hg-aurora {
+  background: var(--hg-aurora);
+}
+.hg-nebel {
+  background: var(--hg-nebel);
 }

@@ -42,7 +42,7 @@ export function UhrWidget() {
   );
 }
 
-const RING_FARBE: Record<Ampel, string> = { gruen: "stroke-gold", gelb: "stroke-gelb", rot: "stroke-rot" };
+const RING_FARBE: Record<Ampel, string> = { gruen: "stroke-cyan-400", gelb: "stroke-amber-400", rot: "stroke-rose-400" };
 
 /** Ring-Anzeige wie bei ZimaOS, mit role="meter" für Screenreader. */
 function Ring({ anteil, ton, wert, name, label, unter }: { anteil: number; ton: Ampel; wert: string; name: string; label: string; unter: string }) {
@@ -166,20 +166,20 @@ export function NetzwerkWidget({ verlauf }: { verlauf: Verlauf }) {
             aria-label={`Netzwerk-Verlauf. Empfangen ${rate(letzter?.runter ?? 0)}, gesendet ${rate(letzter?.hoch ?? 0)}.`}
           >
             {[10, 20, 30].map((y) => (
-              <line key={y} x1="0" x2="100" y1={y} y2={y} className="stroke-slate-900/[0.07]" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
+              <line key={y} x1="0" x2="100" y1={y} y2={y} className="stroke-white/[0.08]" strokeWidth="0.5" vectorEffect="non-scaling-stroke" />
             ))}
-            {runter && <polyline points={runter} fill="none" className="stroke-gold" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />}
-            {hoch && <polyline points={hoch} fill="none" className="stroke-sky-600" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />}
+            {runter && <polyline points={runter} fill="none" className="stroke-fuchsia-400" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />}
+            {hoch && <polyline points={hoch} fill="none" className="stroke-cyan-300" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />}
           </svg>
           {p.length < 2 && <p className="text-xs text-gedaempft">Messe … der Verlauf erscheint in wenigen Sekunden.</p>}
           <p className="mt-2 flex gap-5 text-sm tabular-nums">
             <span className="flex items-center gap-1.5">
-              <ArrowDown className="h-4 w-4 text-akzent" aria-hidden="true" />
+              <ArrowDown className="h-4 w-4 text-fuchsia-300" aria-hidden="true" />
               <span className="sr-only">Empfangen:</span>
               {rate(letzter?.runter ?? 0)}
             </span>
             <span className="flex items-center gap-1.5">
-              <ArrowUp className="h-4 w-4 text-sky-600" aria-hidden="true" />
+              <ArrowUp className="h-4 w-4 text-cyan-300" aria-hidden="true" />
               <span className="sr-only">Gesendet:</span>
               {rate(letzter?.hoch ?? 0)}
             </span>

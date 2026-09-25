@@ -1,11 +1,12 @@
 "use client";
 
-import { ExternalLink, KeyRound, LogOut, Monitor, RefreshCw, Server, Smartphone, Users } from "lucide-react";
-import { useId, useState } from "react";
+import { Check, ExternalLink, KeyRound, LogOut, Monitor, Palette, RefreshCw, Server, Smartphone, Users } from "lucide-react";
+import { useId, useState, useSyncExternalStore } from "react";
 import { useAbfrage } from "@/lib/abfrage";
 import { lion } from "@/lib/api";
 import { zeitpunkt } from "@/lib/format";
 import { geraetText, istMobil } from "@/lib/geraet";
+import { abonniereHintergrund, aktuellerHintergrund, HINTERGRUENDE, setzeHintergrund } from "@/lib/hintergrund";
 import { MIN_LAENGE, passwortPruefen } from "@/lib/passwort";
 import type { EinstellungenAntwort, SitzungsAnsicht } from "@/lib/typen";
 import { useSitzung } from "../Sitzung";
@@ -241,6 +242,35 @@ function Geraete({ sitzungen, neuLaden }: { sitzungen: SitzungsAnsicht[] | undef
   );
 }
 
+function HintergrundWahl() {
+  // Beim Vorab-Rendern gibt es kein localStorage – dann ist noch nichts ausgewählt.
+  const aktiv = useSyncExternalStore(abonniereHintergrund, aktuellerHintergrund, () => null);
+  return (
+    <Abschnitt titel="Hintergrund" icon={Palette} text="Gilt nur für diesen Browser – jedes Gerät kann seinen eigenen haben.">
+      <div role="group" aria-label="Hintergrund wählen" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {HINTERGRUENDE.map((h) => (
+          <button
+            key={h.id}
+            type="button"
+            aria-pressed={aktiv === h.id}
+            onClick={() => setzeHintergrund(h.id)}
+            className={`group overflow-hidden rounded-feld border-2 text-left transition-colors ${aktiv === h.id ? "border-gold" : "border-transparent hover:border-linie-hell"}`}
+          >
+            {/* Verkleinerte Vollansicht: der Verlauf ist für eine ganze Seite gebaut. */}
+            <span className="relative block h-16 overflow-hidden" aria-hidden="true">
+              <span className={`absolute left-0 top-0 h-[900px] w-[1600px] origin-top-left scale-[0.1] hg-${h.id}`} />
+            </span>
+            <span className="flex items-center justify-between gap-2 bg-flaeche-2 px-2.5 py-2 text-xs font-semibold">
+              {h.name}
+              {aktiv === h.id && <Check className="h-4 w-4 text-akzent" aria-hidden="true" />}
+            </span>
+          </button>
+        ))}
+      </div>
+    </Abschnitt>
+  );
+}
+
 export function Einstellungen() {
   const einstellungen = useAbfrage(lion.einstellungen, 0);
   const sitzungen = useAbfrage(lion.sitzungen, 30_000);
@@ -252,6 +282,7 @@ export function Einstellungen() {
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <div className="space-y-5">
           {einstellungen.daten ? <DieseBox e={einstellungen.daten} /> : !einstellungen.fehler && <Lader text="Lade Einstellungen …" />}
+          <HintergrundWahl />
           <Abschnitt titel="Updates" icon={RefreshCw}>
             <p className="text-sm leading-relaxed text-text/90">
               Updates per Knopfdruck kommen in einer späteren Version. Bis dahin auf dem Server im Lion-OS-Ordner:

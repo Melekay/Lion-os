@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { HINTERGRUND_SKRIPT } from "@/lib/hintergrund";
 import { bodyFont, displayFont, monoFont } from "./fonts";
 import "./globals.css";
 
@@ -11,13 +12,17 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b0a08",
+  themeColor: "#0c1a4a",
   colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de" className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} antialiased`}>
+    <html lang="de" className={`${displayFont.variable} ${bodyFont.variable} ${monoFont.variable} antialiased`} suppressHydrationWarning>
+      <head>
+        {/* Gewählten Hintergrund vor dem ersten Zeichnen setzen (kein Flackern). */}
+        <script dangerouslySetInnerHTML={{ __html: HINTERGRUND_SKRIPT }} />
+      </head>
       <body>
         <a
           href="#inhalt"

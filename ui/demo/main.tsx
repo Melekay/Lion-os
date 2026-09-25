@@ -11,6 +11,7 @@ import { Einrichtung } from "../components/seiten/Einrichtung";
 import { Einstellungen } from "../components/seiten/Einstellungen";
 import { Protokoll } from "../components/seiten/Protokoll";
 import { Startseite } from "../components/seiten/Startseite";
+import { gespeicherterHintergrund } from "../lib/hintergrund";
 import { DemoApi } from "./attrappe";
 import { gehe, usePathname } from "./shims/navigation";
 
@@ -18,6 +19,7 @@ import { gehe, usePathname } from "./shims/navigation";
  * Lion OS als Demo: dieselben Seiten und Komponenten wie im echten Lion OS,
  * aber lion-core ist durch Beispieldaten im Browser ersetzt. Nichts wird wirklich installiert.
  */
+document.documentElement.dataset.hintergrund = gespeicherterHintergrund();
 const api = new DemoApi();
 api.verbinden();
 

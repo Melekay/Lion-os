@@ -46,7 +46,8 @@ Jede Architekturentscheidung wird hier mit Datum und Begründung festgehalten.
 | 40 | 25.09.2026 | Home Assistant **ohne Host-Netz und ohne Geräte** | Unsere Katalog-Regeln bleiben ausnahmslos; Proxy-Konfiguration schreibt ein Start-Skript beim ersten Start | Host-Netz + USB durchreichen (bräuchte eine Ausnahme mit Stufe „vollzugriff“) |
 | 41 | 25.09.2026 | **RAM-Warnung** vor der Installation nur in der Oberfläche, mit zweiter Bestätigung | Sie ist ein Rat, keine Sicherheitsregel. Wer bewusst andere Apps stoppt, soll trotzdem installieren können | Installation in lion-core sperren |
 | 42 | 25.09.2026 | **Demo** der Oberfläche als eine HTML-Datei (`npm run demo:build`), Beispiel-API im Browser | Zum Ansehen und Testen ohne Hardware; nutzt dieselben Komponenten, nur `next/link` und `next/navigation` werden ersetzt | Next-Export mit Attrappe (viele Dateien, feste Pfade ab `/`) |
-| 43 | 25.09.2026 | Oberfläche **hell mit Milchglas** statt dunkel (ersetzt Nr. 25) | Wunsch nach modernerem, freundlicherem Look; Karten aus halbdurchsichtigem Weiß über einem weichen Farbverlauf, Amber als Akzent. Kontraste prüft axe | Dunkles Design behalten, Hell/Dunkel umschaltbar (später möglich, alles läuft über Tokens) |
+| 43 | 25.09.2026 | **Farbiger Hintergrund mit dunklem Glas** (wie Homarr/ZimaOS, ersetzt Nr. 25) | Wunsch nach mehr Farbe und modernem Look. Weiße Schrift bleibt auf halbdurchsichtigem Dunkelblau lesbar, egal wie bunt der Hintergrund ist. Leuchtende Balken (Grün→Cyan), Amber als Lion-Akzent | Nur dunkel (zu düster), hell mit weißem Milchglas (zu blass) |
+| 44 | 25.09.2026 | **Hintergrund wählbar** (4 Farbverläufe), gespeichert nur im Browser | Jedes Gerät darf seinen eigenen haben; reine Anzeige, kein Grund für eine Server-Einstellung. Ein kleines Inline-Skript setzt ihn vor dem ersten Zeichnen | Eigene Bilder hochladen (später, braucht Speicherort und Größenprüfung) |
 
 ## Offen
 

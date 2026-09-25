@@ -140,9 +140,9 @@ export function StatusPille({ ton, children }: { ton: Ton; children: ReactNode }
 }
 
 const BALKEN: Record<"gruen" | "gelb" | "rot", string> = {
-  gruen: "from-gold-dunkel to-gold",
-  gelb: "from-gelb/70 to-gelb",
-  rot: "from-rot/70 to-rot",
+  gruen: "from-emerald-400 to-cyan-400",
+  gelb: "from-amber-300 to-orange-500",
+  rot: "from-rose-400 to-red-500",
 };
 
 /** Füllstand mit Ampelfarbe (Gold = normal, Gelb/Rot = Grenze nahe). */
