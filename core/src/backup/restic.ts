@@ -11,11 +11,15 @@ export const RESTIC_IMAGE = "restic/restic:0.18.1";
 
 export type Mount = { quelle: string; ziel: string; nurLesen: boolean };
 
-/** „lesen“: Sichern (Dateien anderer Benutzer lesen). „schreiben“: Wiederherstellen inkl. Besitzer und Rechte. */
+/**
+ * „lesen“: Sichern – Dateien anderer Benutzer lesen und ins Ziel schreiben (das oft einem normalen Benutzer
+ * gehört, z. B. eine USB-Platte). Die Quellen sind dabei immer schreibgeschützt eingebunden.
+ * „schreiben“: Wiederherstellen – zusätzlich Besitzer und Rechte der Dateien setzen.
+ */
 export type Rechte = "lesen" | "schreiben";
 
 const RECHTE: Record<Rechte, string[]> = {
-  lesen: ["DAC_READ_SEARCH"],
+  lesen: ["DAC_READ_SEARCH", "DAC_OVERRIDE"],
   schreiben: ["DAC_READ_SEARCH", "DAC_OVERRIDE", "CHOWN", "FOWNER"],
 };
 

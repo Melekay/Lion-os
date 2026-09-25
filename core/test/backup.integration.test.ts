@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { chmod, mkdir, mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { chmod, chown, mkdir, mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -33,6 +33,15 @@ describe.skipIf(process.env.LION_DOCKER_TEST !== "1")("Backup mit echtem restic"
     // Datei ohne Leserechte: nur mit DAC_READ_SEARCH im Container lesbar.
     await writeFile(join(app, "gesperrt.db"), "nur root darf lesen");
     await chmod(join(app, "gesperrt.db"), 0o000);
+
+    // Wie im echten Leben: Ziel und Daten gehören nicht root (USB-Platte eines Benutzers, App-Daten eines
+    // Container-Benutzers). Läuft der Test als root, stellen wir das mit „nobody“ nach.
+    if (process.getuid?.() === 0) {
+      await chown(repo, 65534, 65534);
+      await chmod(repo, 0o755);
+      await chown(app, 65534, 65534);
+      await chmod(app, 0o700);
+    }
 
     const db = oeffneDatenbank(":memory:");
     const backup = new BackupVerwaltung({ db, restic: new DockerRestic(), apps: keineApps, pfade, pruefeZiel: async (p) => p });

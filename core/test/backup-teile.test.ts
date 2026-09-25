@@ -9,13 +9,14 @@ import { pruefeZiel } from "../src/backup/ziel.js";
 describe("dockerArgumente", () => {
   const m = { quelle: "/srv/lion/apps", ziel: "/daten/apps", nurLesen: true };
 
-  it("läuft ohne Netzwerk, schreibgeschützt, ohne Zusatzrechte außer Lesen", () => {
+  it("läuft ohne Netzwerk, schreibgeschützt, nur mit Lese-/Schreibzugriff auf Dateien", () => {
     const a = dockerArgumente({ mounts: [m], rechte: "lesen", resticArgs: ["snapshots"] });
     expect(a.slice(0, 2)).toEqual(["run", "--rm"]);
     expect(a.join(" ")).toContain("--network none");
     expect(a).toContain("--read-only");
-    expect(a.join(" ")).toContain("--cap-drop ALL --cap-add DAC_READ_SEARCH --security-opt no-new-privileges:true");
+    expect(a.join(" ")).toContain("--cap-drop ALL --cap-add DAC_READ_SEARCH --cap-add DAC_OVERRIDE --security-opt no-new-privileges:true");
     expect(a).not.toContain("CHOWN");
+    expect(a).not.toContain("FOWNER");
     expect(a).toContain("type=bind,source=/srv/lion/apps,target=/daten/apps,readonly");
     expect(a.slice(-3)).toEqual([RESTIC_IMAGE, "--no-cache", "snapshots"]);
   });

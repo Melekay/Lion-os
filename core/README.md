@@ -105,7 +105,7 @@ lion-core ──docker run (ohne Netz, schreibgeschützt)──▶ restic 0.18.1
 - **Aufbewahrung:** 7 tägliche, 4 wöchentliche, 6 monatliche (`restic forget --prune`).
 - **Wiederherstellen** pro App: Die aktuellen Daten werden beiseitegelegt (`.<app>.vor-wiederherstellung-<zeit>`), nie gelöscht. Enthält die Sicherung nichts für die App oder schlägt restic fehl, wird zurückgerollt.
 - **Ampel:** Kein Backup, ein fehlgeschlagenes oder ein zu altes (> 2 Tage gelb, > 7 Tage rot) erscheint als Hinweis auf der Startseite.
-- restic-Container: `--network none`, `--read-only`, `--cap-drop ALL` plus nur `DAC_READ_SEARCH` (Sichern) bzw. zusätzlich `DAC_OVERRIDE`, `CHOWN`, `FOWNER` (Wiederherstellen), `no-new-privileges`.
+- restic-Container: `--network none`, `--read-only`, `--cap-drop ALL` plus nur `DAC_READ_SEARCH` und `DAC_OVERRIDE` (Sichern – Ziel gehört oft einem normalen Benutzer) bzw. zusätzlich `CHOWN`, `FOWNER` (Wiederherstellen), `no-new-privileges`.
 
 Echter Wiederherstellungstest: `LION_DOCKER_TEST=1 npx vitest run test/backup.integration.test.ts`
 
