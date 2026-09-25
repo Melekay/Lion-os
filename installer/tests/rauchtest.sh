@@ -80,7 +80,8 @@ rechte="$(sudo stat -c '%a %U %G' /run/lion-helper/helfer.sock)"
 for pfad in / /opt /opt/lion; do
   sudo -u lion test -w "$pfad" && fehler "lion darf in $pfad schreiben ($(sudo stat -c '%a %U:%G' "$pfad")) – lion-helper wäre angreifbar."
 done
-fremd="$(sudo find /opt/lion/core \( ! -user root -o -perm /022 \) -printf '%M %u %p\n' | head -n 5)"
+# Symbolische Links haben immer die Rechte 777 – Linux wertet sie nicht aus; bei ihnen zählt nur der Besitzer.
+fremd="$(sudo find /opt/lion/core \( ! -user root -o \( ! -type l -perm /022 \) \) -printf '%M %u %p\n' | head -n 5)"
 [[ -z "$fremd" ]] || fehler "Nicht nur root darf den Code von lion-helper ändern:
 $fremd"
 sudo -u lion test -w /opt/lion/core/dist/helfer/index.js && fehler "lion darf den Code von lion-helper ändern – das wäre ein Weg zu root."
