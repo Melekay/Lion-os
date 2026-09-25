@@ -31,6 +31,8 @@ Jede Architekturentscheidung wird hier mit Datum und Begründung festgehalten.
 | 25 | 25.09.2026 | Oberfläche nur **dunkel**, Schriften selbst gehostet (Space Grotesk, Manrope, JetBrains Mono) | Ein geprüftes Farbschema (Kontrast AA) statt zwei; funktioniert ohne Internet, kein Abruf bei Google | Hell/Dunkel umschaltbar – später möglich, Tokens sind vorbereitet |
 | 26 | 25.09.2026 | Startseite als **Schreibtisch wie ZimaOS**: Widgets links, App-Kacheln rechts, kein Menü | Einsteiger finden alles auf einer Seite; Apps sind das Wichtigste und stehen auf dem Handy oben | Seitenleiste mit Menüpunkten (erster Entwurf) |
 | 27 | 25.09.2026 | Netzwerk-Rate wird in der Oberfläche aus Zählern berechnet | lion-core bleibt zustandslos (liefert nur /proc/net/dev-Summen), der Verlauf lebt nur im Browser | Verlauf in lion-core speichern |
+| 28 | 25.09.2026 | Passwortwechsel meldet **alle anderen Geräte** ab; Geräte-Liste zeigt Browser, IP, Beginn | Wer das alte Passwort kannte, verliert sofort den Zugang; Besitzer erkennt fremde Anmeldungen | Sitzungen weiterlaufen lassen |
+| 29 | 25.09.2026 | „Name der Box“ ist nur ein Anzeigename in Lion OS | Den Rechnernamen (Hostname, `.local`-Adresse, Zertifikat) zu ändern braucht root – kommt mit `lion-helper` | Hostname sofort ändern (lion-core müsste root sein) |
 
 ## Offen
 

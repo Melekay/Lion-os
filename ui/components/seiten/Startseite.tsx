@@ -146,6 +146,14 @@ export function Startseite() {
               </Kachel>
             </li>
           )}
+          {passt("Einstellungen") && (
+            <li>
+              <Kachel href="/einstellungen/" label="Einstellungen">
+                <AppSymbol id="einstellungen" />
+                <span className="text-sm font-semibold">Einstellungen</span>
+              </Kachel>
+            </li>
+          )}
         </ul>
 
         {apps.daten && installiert.length === 0 && !begriff && (
@@ -154,7 +162,7 @@ export function Startseite() {
             meldet Ausfälle.
           </p>
         )}
-        {begriff && sichtbar.length === 0 && !passt("App Store") && !passt("Protokoll") && (
+        {begriff && sichtbar.length === 0 && !passt("App Store") && !passt("Protokoll") && !passt("Einstellungen") && (
           <p className="text-sm text-gedaempft">Keine App gefunden für „{suche.trim()}“.</p>
         )}
       </section>

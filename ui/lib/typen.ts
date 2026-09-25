@@ -51,3 +51,14 @@ export type AuditEintrag = {
 };
 
 export type SetupStatus = { eingerichtet: boolean; codeNoetig: boolean };
+
+export type SitzungsAnsicht = {
+  id: number;
+  erstelltAm: string | null;
+  laeuftAb: string;
+  geraet: string | null;
+  ip: string | null;
+  aktuell: boolean;
+};
+
+export type EinstellungenAntwort = { boxName: string; version: string; adressen: string[] };

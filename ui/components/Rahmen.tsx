@@ -7,13 +7,16 @@ import { Logo } from "./Logo";
 import { Geschuetzt, useSitzung } from "./Sitzung";
 
 function Kopfzeile() {
-  const { name, abmelden } = useSitzung();
+  const { name, boxName, abmelden } = useSitzung();
   const startseite = usePathname() === "/";
   return (
     <header className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 pt-5 sm:px-6 lg:px-8">
       <div className="flex items-center gap-3">
-        <Link href="/" className="rounded-lg" aria-label="Lion OS – Startseite">
+        <Link href="/" className="flex items-center gap-2.5 rounded-lg" aria-label={`${boxName === "Lion OS" ? "Lion OS" : `Lion OS ${boxName}`} – Startseite`}>
           <Logo klein />
+          {boxName !== "Lion OS" && (
+            <span className="hidden max-w-[14rem] truncate border-l border-white/10 pl-2.5 text-sm font-semibold text-gedaempft sm:inline">{boxName}</span>
+          )}
         </Link>
         {!startseite && (
           <Link

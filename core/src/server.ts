@@ -5,12 +5,16 @@ import { z } from "zod";
 import { AppFehler, type AppVerwaltung } from "./apps.js";
 import { letzteEintraege, protokolliere } from "./audit.js";
 import type { Datenbank } from "./datenbank.js";
+import { BoxName, ladeEinstellungen, speichereBoxName } from "./einstellungen.js";
 import { hashePasswort, passwortRegelVerletzt, pruefePasswort } from "./passwort.js";
 import { AnmeldeSperre } from "./sperre.js";
 import {
+  beendeAndereSitzungen,
   beendeSitzung,
+  beendeSitzungMitId,
   erstelleSitzung,
   findeSitzung,
+  listeSitzungen,
   SITZUNG_COOKIE,
   SITZUNG_DAUER_MS,
   type SitzungsBenutzer,
@@ -26,6 +30,8 @@ export type ServerOptionen = {
   sichereCookies?: boolean;
   logger?: boolean;
   apps?: AppVerwaltung;
+  /** Adressen, unter denen Lion OS erreichbar ist (aus /etc/lion/adressen); für die Einstellungen. */
+  adressen?: () => Promise<string[]>;
   /** Wenn gesetzt, verlangt die Einrichtung diesen Code (der Installer schreibt ihn nach /etc/lion/lion.env). */
   einrichtungsCode?: string;
 };
@@ -42,6 +48,11 @@ export const CSRF_HEADER = "x-lion-request";
 const Zugangsdaten = z.object({
   name: z.string().trim().min(1).max(64),
   passwort: z.string().min(1).max(256),
+});
+
+const PasswortWechsel = z.object({
+  altesPasswort: z.string().min(1).max(256),
+  neuesPasswort: z.string().min(1).max(256),
 });
 
 const Einrichtung = Zugangsdaten.extend({ code: z.string().max(64).optional() });
@@ -88,6 +99,8 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
     if (!req.benutzer) return reply.code(401).send({ fehler: "Bitte zuerst anmelden." });
   };
 
+  const herkunft = (req: FastifyRequest) => ({ geraet: req.headers["user-agent"], ip: req.ip });
+
   const eingerichtet = () => (db.prepare("SELECT COUNT(*) AS n FROM benutzer").get() as { n: number }).n > 0;
 
   // ---- Öffentlich ---------------------------------------------------------
@@ -124,7 +137,7 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
       .prepare("INSERT INTO benutzer (name, passwort_hash, erstellt_am) VALUES (?, ?, ?)")
       .run(daten.data.name, hash, new Date().toISOString());
     protokolliere(db, { benutzer: daten.data.name, aktion: "einrichtung", ergebnis: "erfolg" });
-    const token = erstelleSitzung(db, Number(info.lastInsertRowid));
+    const token = erstelleSitzung(db, Number(info.lastInsertRowid), Date.now(), herkunft(req));
     reply.setCookie(SITZUNG_COOKIE, token, cookieOptionen);
     return reply.code(201).send({ name: daten.data.name });
   });
@@ -154,7 +167,7 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
     }
     sperre.erfolg(schluessel);
     protokolliere(db, { benutzer: zeile.name, aktion: "anmeldung", ergebnis: "erfolg", details: `ip=${req.ip}` });
-    reply.setCookie(SITZUNG_COOKIE, erstelleSitzung(db, zeile.id), cookieOptionen);
+    reply.setCookie(SITZUNG_COOKIE, erstelleSitzung(db, zeile.id, Date.now(), herkunft(req)), cookieOptionen);
     return { name: zeile.name };
   });
 
@@ -168,6 +181,69 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
   });
 
   app.get("/api/auth/me", { preHandler: benoetigtAnmeldung }, async (req) => ({ name: req.benutzer?.name }));
+
+  // ---- Konto und Sitzungen ------------------------------------------------
+  app.post("/api/auth/passwort", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
+    const ich = req.benutzer!;
+    const schluessel = `passwort:${req.ip}`;
+    const gesperrt = sperre.gesperrtFuer(schluessel);
+    if (gesperrt > 0) {
+      reply.header("retry-after", Math.ceil(gesperrt / 1000));
+      return reply.code(429).send({ fehler: `Zu viele Fehlversuche. Bitte in ${Math.ceil(gesperrt / 60000)} Minuten erneut versuchen.` });
+    }
+    const daten = PasswortWechsel.safeParse(req.body);
+    if (!daten.success) return reply.code(400).send({ fehler: "Altes und neues Passwort angeben." });
+    const regel = passwortRegelVerletzt(daten.data.neuesPasswort);
+    if (regel) return reply.code(400).send({ fehler: regel });
+
+    const zeile = db.prepare("SELECT passwort_hash FROM benutzer WHERE id = ?").get(ich.id) as { passwort_hash: string };
+    if (!(await pruefePasswort(daten.data.altesPasswort, zeile.passwort_hash))) {
+      sperre.fehlversuch(schluessel);
+      protokolliere(db, { benutzer: ich.name, aktion: "passwort.aendern", ergebnis: "abgelehnt", details: `ip=${req.ip}` });
+      // 403 statt 401: Die Sitzung ist gültig, nur das alte Passwort stimmt nicht.
+      return reply.code(403).send({ fehler: "Das bisherige Passwort stimmt nicht." });
+    }
+    sperre.erfolg(schluessel);
+    db.prepare("UPDATE benutzer SET passwort_hash = ? WHERE id = ?").run(await hashePasswort(daten.data.neuesPasswort), ich.id);
+    // Wer das alte Passwort kannte, soll nicht angemeldet bleiben: alle anderen Geräte abmelden.
+    const abgemeldet = beendeAndereSitzungen(db, ich.id, ich.sitzungId);
+    protokolliere(db, { benutzer: ich.name, aktion: "passwort.aendern", ergebnis: "erfolg", details: `andere Sitzungen beendet: ${abgemeldet}` });
+    return { ok: true, abgemeldet };
+  });
+
+  app.get("/api/auth/sitzungen", { preHandler: benoetigtAnmeldung }, async (req) => ({
+    sitzungen: listeSitzungen(db, req.benutzer!.id, req.benutzer!.sitzungId),
+  }));
+
+  app.post("/api/auth/sitzungen/abmelden", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
+    const ich = req.benutzer!;
+    const daten = z.object({ id: z.number().int().positive().optional() }).safeParse(req.body ?? {});
+    if (!daten.success) return reply.code(400).send({ fehler: "Ungültige Sitzung." });
+    if (daten.data.id === undefined) {
+      const anzahl = beendeAndereSitzungen(db, ich.id, ich.sitzungId);
+      protokolliere(db, { benutzer: ich.name, aktion: "sitzungen.abmelden", ergebnis: "erfolg", details: `alle anderen: ${anzahl}` });
+      return { ok: true, abgemeldet: anzahl };
+    }
+    if (daten.data.id === ich.sitzungId) return reply.code(400).send({ fehler: "Diese Sitzung beendest du über „Abmelden“." });
+    if (!beendeSitzungMitId(db, ich.id, daten.data.id)) return reply.code(404).send({ fehler: "Sitzung nicht gefunden." });
+    protokolliere(db, { benutzer: ich.name, aktion: "sitzungen.abmelden", ergebnis: "erfolg", details: `sitzung=${daten.data.id}` });
+    return { ok: true, abgemeldet: 1 };
+  });
+
+  // ---- Einstellungen ------------------------------------------------------
+  app.get("/api/einstellungen", { preHandler: benoetigtAnmeldung }, async () => ({
+    ...ladeEinstellungen(db),
+    version: opt.version,
+    adressen: opt.adressen ? await opt.adressen() : [],
+  }));
+
+  app.post("/api/einstellungen", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
+    const daten = z.object({ boxName: BoxName }).safeParse(req.body);
+    if (!daten.success) return reply.code(400).send({ fehler: daten.error.issues[0]?.message ?? "Ungültige Eingabe." });
+    speichereBoxName(db, daten.data.boxName);
+    protokolliere(db, { benutzer: req.benutzer?.name, aktion: "einstellungen.aendern", ziel: "boxName", ergebnis: "erfolg" });
+    return ladeEinstellungen(db);
+  });
 
   app.get("/api/system", { preHandler: benoetigtAnmeldung }, async () => status());
 

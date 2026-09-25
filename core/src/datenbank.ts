@@ -34,6 +34,14 @@ const MIGRATIONEN: string[] = [
      meldung TEXT,
      installiert_am TEXT NOT NULL
    );`,
+  // Sitzungen merken sich Gerät, IP und Beginn (für „Angemeldete Geräte“); Einstellungen als Schlüssel/Wert.
+  `ALTER TABLE sitzungen ADD COLUMN erstellt_am INTEGER;
+   ALTER TABLE sitzungen ADD COLUMN geraet TEXT;
+   ALTER TABLE sitzungen ADD COLUMN ip TEXT;
+   CREATE TABLE einstellungen (
+     schluessel TEXT PRIMARY KEY,
+     wert TEXT NOT NULL
+   );`,
 ];
 
 export type Datenbank = DatabaseSync;

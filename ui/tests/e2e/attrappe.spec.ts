@@ -260,3 +260,72 @@ test("unbekannte Seite zeigt 404 mit Weg zurück", async ({ page }) => {
   expect(antwort?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "Seite nicht gefunden" })).toBeVisible();
 });
+
+test.describe("Einstellungen", () => {
+  test("Kachel führt hin; Seite zeigt Version, Adressen und Geräte", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "Einstellungen", exact: true }).click();
+    await expect(page).toHaveURL(/\/einstellungen\/$/);
+    await expect(page.getByRole("heading", { name: "Einstellungen", level: 1 })).toBeVisible();
+    await expect(page.getByText("0.1.0-dev")).toBeVisible();
+    await expect(page.getByRole("link", { name: /https:\/\/192\.168\.1\.20/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /https:\/\/localhost/ })).toHaveCount(0);
+    const geraete = page.getByRole("region").filter({ hasText: "Angemeldete Geräte" });
+    await expect(geraete.getByText("Firefox auf Windows")).toBeVisible();
+    await expect(geraete.getByText("Safari auf iPhone")).toBeVisible();
+    await expect(geraete.getByText("Dieses Gerät")).toHaveCount(1);
+    await expect(geraete.getByText("Anmeldezeit unbekannt")).toBeVisible();
+    await barrierefrei(page);
+  });
+
+  test("Name der Box speichern: erscheint in der Kopfzeile; Fehler werden angezeigt", async ({ page }) => {
+    await page.goto("/einstellungen/");
+    const feld = page.getByLabel("Name der Box");
+    await expect(feld).toHaveValue("Lion OS");
+    await feld.fill("<b>");
+    await page.getByRole("button", { name: "Speichern" }).click();
+    await expect(page.getByText("Erlaubt sind Buchstaben")).toBeVisible();
+    await feld.fill("Wohnzimmer");
+    await page.getByRole("button", { name: "Speichern" }).click();
+    await expect(page.getByText("Name gespeichert.")).toBeVisible();
+    await expect(page.getByRole("banner")).toContainText("Wohnzimmer");
+    expect(api.boxName).toBe("Wohnzimmer");
+  });
+
+  test("Passwort ändern: prüft Eingaben, zeigt Fehler vom Server und meldet andere Geräte ab", async ({ page }) => {
+    await page.goto("/einstellungen/");
+    const knopf = page.getByRole("button", { name: "Passwort ändern" });
+    await page.getByLabel("Neues Passwort", { exact: true }).fill("kurz");
+    await page.getByLabel("Neues Passwort wiederholen").fill("anders");
+    await knopf.click();
+    await expect(page.getByText("Bitte das bisherige Passwort eingeben.")).toBeVisible();
+    await expect(page.getByText("Mindestens 12 Zeichen.", { exact: true })).toBeVisible();
+    expect(api.anfragen.some((a) => a.pfad === "/api/auth/passwort")).toBe(false);
+
+    await page.getByLabel("Bisheriges Passwort").fill("falsch-falsch-falsch");
+    await page.getByLabel("Neues Passwort", { exact: true }).fill("ein-neues-langes-passwort");
+    await page.getByLabel("Neues Passwort wiederholen").fill("ein-neues-langes-passwort");
+    await knopf.click();
+    await expect(page.getByText("Das bisherige Passwort stimmt nicht.")).toBeVisible();
+
+    await page.getByLabel("Bisheriges Passwort").fill("richtiges-passwort");
+    await knopf.click();
+    await expect(page.getByText("Passwort geändert. 2 andere Geräte wurden abgemeldet.")).toBeVisible();
+    await expect(page.getByLabel("Bisheriges Passwort")).toHaveValue("");
+    await expect(page.getByText("Safari auf iPhone")).toHaveCount(0);
+    expect(api.passwort).toBe("ein-neues-langes-passwort");
+  });
+
+  test("einzelnes Gerät und alle anderen abmelden", async ({ page }) => {
+    await page.goto("/einstellungen/");
+    await page.getByRole("button", { name: "Safari auf iPhone abmelden" }).click();
+    await expect(page.getByText("Safari auf iPhone")).toHaveCount(0);
+    expect(api.anfragen.find((a) => a.pfad === "/api/auth/sitzungen/abmelden")?.body).toEqual({ id: 2 });
+
+    const alle = page.getByRole("button", { name: "Alle anderen Geräte abmelden" });
+    await alle.click();
+    await expect(page.getByText("Unbekanntes Gerät", { exact: true })).toHaveCount(0);
+    await expect(alle).toBeDisabled();
+    expect(api.anfragen.filter((a) => a.pfad === "/api/auth/sitzungen/abmelden").at(-1)?.body).toEqual({});
+  });
+});
