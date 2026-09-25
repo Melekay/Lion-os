@@ -5,7 +5,7 @@
 
 export type Ampel = "gruen" | "gelb" | "rot";
 
-export type Hinweis = { bereich: "cpu" | "ram" | "speicher" | "temperatur"; stufe: Ampel; text: string };
+export type Hinweis = { bereich: "cpu" | "ram" | "speicher" | "temperatur" | "backup"; stufe: Ampel; text: string };
 
 export type Netzwerk = { schnittstelle: string; empfangenBytes: number; gesendetBytes: number };
 
@@ -62,3 +62,29 @@ export type SitzungsAnsicht = {
 };
 
 export type EinstellungenAntwort = { boxName: string; version: string; adressen: string[] };
+
+export type BackupLauf = {
+  id: number;
+  art: "sicherung" | "wiederherstellung";
+  start: string;
+  ende: string | null;
+  status: "laeuft" | "erfolg" | "fehler";
+  meldung: string | null;
+  sicherung: string | null;
+  bytesNeu: number | null;
+  app: string | null;
+};
+
+export type BackupStatus = {
+  eingerichtet: boolean;
+  ziel: string | null;
+  zeit: string;
+  aktiv: boolean;
+  laeuft: BackupLauf["art"] | null;
+  letzter: BackupLauf | null;
+  letzterErfolg: BackupLauf | null;
+  letzteWiederherstellung: BackupLauf | null;
+  naechster: string | null;
+};
+
+export type Sicherung = { id: string; kurz: string; zeit: string; pfade: string[] };

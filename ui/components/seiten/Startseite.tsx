@@ -6,7 +6,8 @@ import { useRef, useState } from "react";
 import { useAbfrage } from "@/lib/abfrage";
 import { lion } from "@/lib/api";
 import { besteAdresse, beschaeftigt, statusAnzeige, type Ton } from "@/lib/apps";
-import { useHostname } from "@/lib/browser";
+import { backupZustand } from "@/lib/backup";
+import { useHostname, useJetzt } from "@/lib/browser";
 import { LEERER_VERLAUF, neuerVerlauf } from "@/lib/netz";
 import type { AppAnsicht } from "@/lib/typen";
 import { AppSymbol } from "../AppSymbol";
@@ -66,6 +67,9 @@ export function Startseite() {
   }, 5_000);
   const apps = useAbfrage(lion.apps, (d) => (d && beschaeftigt(d.apps) ? 2_000 : 15_000));
   const protokoll = useAbfrage(() => lion.protokoll(3), 30_000);
+  const backup = useAbfrage(lion.backup, (d) => (d?.laeuft ? 5_000 : 60_000));
+  const jetzt = useJetzt();
+  const backupStand = backupZustand(backup.daten, jetzt ?? 0);
   const hostname = useHostname();
   const [suche, setSuche] = useState("");
 
@@ -138,6 +142,15 @@ export function Startseite() {
           {sichtbar.map((a) => (
             <AppKachel key={a.id} app={a} hostname={hostname} />
           ))}
+          {passt("Backup") && (
+            <li>
+              <Kachel href="/backup/" label={`Backup – ${backupStand.text}`}>
+                <AppSymbol id="backup" />
+                <span className="text-sm font-semibold">Backup</span>
+                {backup.daten && <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${PUNKT[backupStand.ton]}`} title={backupStand.text} aria-hidden="true" />}
+              </Kachel>
+            </li>
+          )}
           {passt("Protokoll") && (
             <li>
               <Kachel href="/protokoll/" label="Protokoll">
@@ -162,7 +175,7 @@ export function Startseite() {
             meldet Ausfälle.
           </p>
         )}
-        {begriff && sichtbar.length === 0 && !passt("App Store") && !passt("Protokoll") && !passt("Einstellungen") && (
+        {begriff && sichtbar.length === 0 && !passt("App Store") && !passt("Backup") && !passt("Protokoll") && !passt("Einstellungen") && (
           <p className="text-sm text-gedaempft">Keine App gefunden für „{suche.trim()}“.</p>
         )}
       </section>

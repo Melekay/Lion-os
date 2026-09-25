@@ -1,4 +1,4 @@
-import type { AppAnsicht, AuditEintrag, EinstellungenAntwort, SetupStatus, SitzungsAnsicht, Systemstatus } from "./typen";
+import type { AppAnsicht, AuditEintrag, BackupStatus, EinstellungenAntwort, SetupStatus, Sicherung, SitzungsAnsicht, Systemstatus } from "./typen";
 
 /** Fehler einer API-Anfrage mit einer Meldung, die man direkt anzeigen kann. */
 export class ApiFehler extends Error {
@@ -79,4 +79,11 @@ export const lion = {
   sitzungenAbmelden: (id?: number) => api<{ ok: true; abgemeldet: number }>("/api/auth/sitzungen/abmelden", { daten: id === undefined ? {} : { id } }),
   einstellungen: () => api<EinstellungenAntwort>("/api/einstellungen"),
   einstellungenSpeichern: (d: { boxName: string }) => api<{ boxName: string }>("/api/einstellungen", { daten: d }),
+  backup: () => api<BackupStatus>("/api/backup"),
+  backupEinrichten: (d: { ziel: string; zeit: string }) => api<{ schluesselNeu: string | null; status: BackupStatus }>("/api/backup/einrichten", { daten: d }),
+  backupPlan: (d: { zeit: string; aktiv: boolean }) => api<BackupStatus>("/api/backup/plan", { daten: d }),
+  backupJetzt: () => api<unknown>("/api/backup/jetzt", { methode: "POST" }),
+  sicherungen: () => api<{ sicherungen: Sicherung[] }>("/api/backup/sicherungen"),
+  wiederherstellen: (d: { sicherung: string; app: string; bestaetigung: string }) => api<unknown>("/api/backup/wiederherstellen", { daten: d }),
+  backupSchluessel: (passwort: string) => api<{ schluessel: string }>("/api/backup/schluessel", { daten: { passwort } }),
 };

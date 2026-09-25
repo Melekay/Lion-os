@@ -42,6 +42,18 @@ const MIGRATIONEN: string[] = [
      schluessel TEXT PRIMARY KEY,
      wert TEXT NOT NULL
    );`,
+  // Backup: jeder Lauf (Sicherung oder Wiederherstellung) mit Ergebnis.
+  `CREATE TABLE backup_laeufe (
+     id INTEGER PRIMARY KEY,
+     art TEXT NOT NULL,
+     start TEXT NOT NULL,
+     ende TEXT,
+     status TEXT NOT NULL,
+     meldung TEXT,
+     sicherung TEXT,
+     bytes_neu INTEGER,
+     app TEXT
+   );`,
 ];
 
 export type Datenbank = DatabaseSync;

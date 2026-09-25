@@ -33,6 +33,11 @@ Jede Architekturentscheidung wird hier mit Datum und Begründung festgehalten.
 | 27 | 25.09.2026 | Netzwerk-Rate wird in der Oberfläche aus Zählern berechnet | lion-core bleibt zustandslos (liefert nur /proc/net/dev-Summen), der Verlauf lebt nur im Browser | Verlauf in lion-core speichern |
 | 28 | 25.09.2026 | Passwortwechsel meldet **alle anderen Geräte** ab; Geräte-Liste zeigt Browser, IP, Beginn | Wer das alte Passwort kannte, verliert sofort den Zugang; Besitzer erkennt fremde Anmeldungen | Sitzungen weiterlaufen lassen |
 | 29 | 25.09.2026 | „Name der Box“ ist nur ein Anzeigename in Lion OS | Den Rechnernamen (Hostname, `.local`-Adresse, Zertifikat) zu ändern braucht root – kommt mit `lion-helper` | Hostname sofort ändern (lion-core müsste root sein) |
+| 30 | 25.09.2026 | restic läuft **im Container** (`restic/restic:0.18.1`), gestartet von lion-core | App-Daten gehören anderen Benutzern (z. B. Postgres); so braucht lion-core kein root. Container ohne Netz, schreibgeschützt, nur nötige Capabilities | restic als root-Dienst, `lion-helper` jetzt schon |
+| 31 | 25.09.2026 | Apps werden während der Sicherung **kurz angehalten** | Datenbanken in Apps (Nextcloud) werden so konsistent gesichert, ohne App-spezifische Dump-Skripte | Live-Sicherung (inkonsistent), Dumps pro App (später als Verbesserung) |
+| 32 | 25.09.2026 | Backup-Ziel nur unter `/mnt` oder `/media`, auf **anderer Festplatte** | Das Ziel wird in einen Container eingebunden – keine Systemordner; ein Backup auf derselben Platte schützt nicht vor Plattenschaden | Beliebiger Pfad |
+| 33 | 25.09.2026 | Wiederherstellen legt aktuelle Daten **beiseite** statt sie zu löschen; Rückrollen bei Fehler | Eine falsche Wiederherstellung darf nichts zerstören | Überschreiben |
+| 34 | 25.09.2026 | Wiederherstellungsschlüssel wird **einmal** gezeigt, danach nur mit Passwort | Ohne ihn ist das Backup auf neuer Hardware wertlos; wer die Sitzung kapert, soll ihn nicht einfach lesen können | Schlüssel immer sichtbar, Schlüssel nie wieder zeigen |
 
 ## Offen
 
@@ -41,5 +46,6 @@ Jede Architekturentscheidung wird hier mit Datum und Begründung festgehalten.
 - Gruppe `docker` kommt einem Root-Zugang nahe. Später einen eng begrenzten `lion-helper` (feste Befehle) oder einen Docker-Socket-Proxy mit Allowlist prüfen.
 - NodeSource-Schlüssel mit dem strengeren apt von Debian 13 (sqv) auf echter Hardware prüfen – die CI läuft auf Ubuntu.
 - lion-ui nutzt ESLint 9, weil `eslint-config-next` 16.3 (eslint-plugin-react) noch nicht mit ESLint 10 läuft. Wechseln, sobald unterstützt (nur Entwicklungswerkzeug, nicht auf dem Gerät).
+- Backup-Festplatten einhängen (USB) geht noch nicht über die Oberfläche – braucht root (`lion-helper`). Ebenso Netz-Ziele (SFTP/S3) und eine komplette Wiederherstellung auf neuer Hardware per Assistent.
 - Oberfläche wird auf dem Gerät gebaut (~20 s, ~570 MB vorübergehend). Ab dem ersten Release fertige Dateien ausliefern.
 - `node:sqlite` meldet in Node 22 noch „experimental“ – beobachten; Fallback wäre better-sqlite3.

@@ -91,7 +91,28 @@ export class AppVerwaltung {
     throw new AppFehler("Keine freien Ports mehr.", 409);
   }
 
-  /** Startet eine Hintergrund-Aufgabe; wirft, wenn für die App schon eine läuft. */
+  // ---- Für das Backup ----------------------------------------------------
+  /** Apps, die laut Datenbank laufen und gerade keine andere Aktion haben. */
+  laufendeApps(): string[] {
+    return (this.o.db.prepare("SELECT id FROM apps WHERE status = 'laeuft' ORDER BY id").all() as { id: string }[])
+      .map((z) => z.id)
+      .filter((id) => !this.aufgaben.has(id));
+  }
+
+  /** Hält eine App an, ohne ihren gespeicherten Status zu ändern (sie gilt weiter als „läuft“). */
+  async anhalten(id: string): Promise<void> {
+    await this.o.laufzeit.stoppen(projektName(id), this.verzeichnisse(id).zustand);
+  }
+
+  async fortsetzen(id: string): Promise<void> {
+    await this.o.laufzeit.starten(projektName(id), this.verzeichnisse(id).zustand);
+  }
+
+  istInstalliert(id: string): boolean {
+    return this.zeile(id) !== undefined;
+  }
+
+    /** Startet eine Hintergrund-Aufgabe; wirft, wenn für die App schon eine läuft. */
   private starteAufgabe(id: string, arbeit: () => Promise<void>) {
     if (this.aufgaben.has(id)) throw new AppFehler("Für diese App läuft bereits eine Aktion.", 409);
     const p = arbeit().finally(() => this.aufgaben.delete(id));
