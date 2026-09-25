@@ -403,5 +403,9 @@ test.describe("Backup", () => {
     await page.getByRole("button", { name: "Speichern" }).click();
     await expect(page.getByText("Zeitplan gespeichert.")).toBeVisible();
     expect(api.backup.aktiv).toBe(false);
+    // Die Meldung bleibt stehen, auch nachdem der Status neu geladen wurde.
+    await expect.poll(() => api.anfragen.filter((a) => a.pfad === "/api/backup").length).toBeGreaterThanOrEqual(2);
+    await expect(page.getByText("Zeitplan gespeichert.")).toBeVisible();
+    await expect(page.getByLabel("Täglich automatisch sichern")).not.toBeChecked();
   });
 });

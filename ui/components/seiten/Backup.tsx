@@ -459,7 +459,7 @@ export function Backup() {
         <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
           <div className="space-y-5">
             <Status s={s} onJetzt={() => void status.neuLaden()} />
-            <Zeitplan key={`${s.zeit}-${s.aktiv}`} s={s} onGespeichert={() => void status.neuLaden()} />
+            <Zeitplan s={s} onGespeichert={() => void status.neuLaden()} />
             <Knopf art="leise" onClick={() => setZielAendern(true)}>
               Backup-Ziel ändern …
             </Knopf>
