@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bewerte, messe, type Messwerte } from "../src/system.js";
+import { bewerte, messe, type Messwerte, werteNetzwerkAus } from "../src/system.js";
 
 const basis: Messwerte = {
   cpuKerne: 4,
@@ -9,6 +9,7 @@ const basis: Messwerte = {
   speicher: [{ pfad: "/", gesamtGb: 100, freiGb: 50 }],
   temperaturC: 50,
   laufzeitS: 100,
+  netzwerk: null,
 };
 
 describe("Ampel", () => {
@@ -59,5 +60,32 @@ describe("Messung", () => {
   it("kommt mit nicht existierenden Pfaden zurecht", async () => {
     const m = await messe(["/gibt/es/nicht"]);
     expect(m.speicher[0]).toEqual({ pfad: "/gibt/es/nicht", gesamtGb: 0, freiGb: 0 });
+  });
+});
+
+describe("Netzwerk", () => {
+  const PROC = `Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo: 9000000     100    0    0    0     0          0         0  9000000     100    0    0    0     0       0          0
+  eth0: 5000000    4000    0    0    0     0          0         0  1000000    3000    0    0    0     0       0          0
+ wlan0:  200000     300    0    0    0     0          0         0   100000     200    0    0    0     0       0          0
+docker0: 7000000     10    0    0    0     0          0         0  7000000      10    0    0    0     0       0          0
+vethab12: 7000000    10    0    0    0     0          0         0  7000000      10    0    0    0     0       0          0
+br-1a2b: 7000000     10    0    0    0     0          0         0  7000000      10    0    0    0     0       0          0
+   wg0: 7000000     10    0    0    0     0          0         0  7000000      10    0    0    0     0       0          0
+`;
+
+  it("summiert nur echte Netzwerkkarten und nennt die mit dem meisten Verkehr", () => {
+    expect(werteNetzwerkAus(PROC)).toEqual({ schnittstelle: "eth0", empfangenBytes: 5200000, gesendetBytes: 1100000 });
+  });
+
+  it("liefert null ohne echte Netzwerkkarte", () => {
+    expect(werteNetzwerkAus(PROC.split("\n").filter((z) => !/eth0|wlan0/.test(z)).join("\n"))).toBeNull();
+    expect(werteNetzwerkAus("")).toBeNull();
+  });
+
+  it("liest auf Linux echte Werte", async () => {
+    const m = await messe(["/"]);
+    if (process.platform === "linux") expect(m.netzwerk === null || m.netzwerk.empfangenBytes >= 0).toBe(true);
   });
 });

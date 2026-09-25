@@ -7,6 +7,8 @@ export type Ampel = "gruen" | "gelb" | "rot";
 
 export type Hinweis = { bereich: "cpu" | "ram" | "speicher" | "temperatur"; stufe: Ampel; text: string };
 
+export type Netzwerk = { schnittstelle: string; empfangenBytes: number; gesendetBytes: number };
+
 export type Systemstatus = {
   cpuKerne: number;
   last1: number;
@@ -15,6 +17,7 @@ export type Systemstatus = {
   speicher: { pfad: string; gesamtGb: number; freiGb: number }[];
   temperaturC: number | null;
   laufzeitS: number;
+  netzwerk: Netzwerk | null;
   ampel: Ampel;
   hinweise: Hinweis[];
 };

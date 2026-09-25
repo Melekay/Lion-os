@@ -76,12 +76,13 @@
     color: var(--text);
     font-family: var(--font-sans);
     text-rendering: optimizeLegibility;
-    /* Feines Raster + Goldschein oben links: „Kontrollraum“, ohne vom Inhalt abzulenken. */
+    /* Dunkle Fläche mit weichen Lichtstreifen und Goldschein – ruhig, damit Kacheln im Vordergrund stehen. */
     background:
-      radial-gradient(55rem 35rem at -10% -10%, rgba(232, 183, 58, 0.09), transparent 60%),
-      radial-gradient(40rem 30rem at 110% 0%, rgba(232, 183, 58, 0.04), transparent 60%),
-      linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px) 0 0 / 100% 32px,
-      linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px) 0 0 / 32px 100%,
+      radial-gradient(55rem 35rem at -10% -10%, rgba(232, 183, 58, 0.08), transparent 60%),
+      linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.035) 44%, transparent 50%),
+      linear-gradient(115deg, transparent 58%, rgba(232, 183, 58, 0.035) 62%, transparent 66%),
+      linear-gradient(115deg, transparent 72%, rgba(255, 255, 255, 0.025) 75%, transparent 78%),
+      radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 0 / 22px 22px,
       var(--nacht);
     background-attachment: fixed;
   }

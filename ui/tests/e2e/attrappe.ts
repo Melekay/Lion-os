@@ -21,6 +21,7 @@ export class Attrappe {
     speicher: [{ pfad: "/", gesamtGb: 500, freiGb: 320 }],
     temperaturC: 48,
     laufzeitS: 3 * 86400 + 5 * 3600,
+    netzwerk: { schnittstelle: "eth0", empfangenBytes: 1_000_000, gesendetBytes: 200_000 },
     ampel: "gruen",
     hinweise: [],
   };
@@ -107,7 +108,12 @@ export class Attrappe {
       return this.json(route, 200, { ok: true });
     }
     if (pfad === "/api/auth/me") return this.json(route, 200, { name: "emil" });
-    if (pfad === "/api/system") return this.json(route, 200, this.system);
+    if (pfad === "/api/system") {
+      // Zähler wachsen bei jeder Abfrage – so entsteht ein Verlauf im Netzwerk-Widget.
+      const n = this.system.netzwerk;
+      if (n) this.system.netzwerk = { ...n, empfangenBytes: n.empfangenBytes + 250_000, gesendetBytes: n.gesendetBytes + 40_000 };
+      return this.json(route, 200, this.system);
+    }
     if (pfad === "/api/audit") return this.json(route, 200, { eintraege: this.protokoll });
     if (pfad === "/api/apps") {
       this.weiterzaehlen();

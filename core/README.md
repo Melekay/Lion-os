@@ -31,7 +31,7 @@ Im Betrieb lauscht lion-core nur auf `127.0.0.1`; Caddy leitet von außen weiter
 | POST | `/api/auth/login` | nein | Anmelden `{name, passwort}` |
 | POST | `/api/auth/logout` | ja | Abmelden |
 | GET | `/api/auth/me` | ja | Aktueller Benutzer |
-| GET | `/api/system` | ja | CPU, RAM, Speicher, Temperatur + Ampel mit Hinweisen |
+| GET | `/api/system` | ja | CPU, RAM, Speicher, Temperatur, Netzwerk-Zähler (nur echte Karten) + Ampel mit Hinweisen |
 | GET | `/api/audit?anzahl=100` | ja | Letzte Einträge des Audit-Logs |
 | GET | `/api/apps` | ja | Katalog mit Installationsstatus und HTTPS-Adressen |
 | POST | `/api/apps/:id/installieren` | ja | Installation im Hintergrund starten (202) |

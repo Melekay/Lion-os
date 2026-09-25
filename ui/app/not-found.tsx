@@ -8,7 +8,7 @@ export default function NichtGefunden() {
         href="/"
         className="inline-flex min-h-11 w-full items-center justify-center rounded-feld bg-gold px-4 text-sm font-semibold text-auf-gold hover:bg-gold-hell"
       >
-        Zur Übersicht
+        Zur Startseite
       </Link>
     </Zugang>
   );

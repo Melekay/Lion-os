@@ -14,3 +14,26 @@ export function useHostname(): string {
 export function useStunde(): number | null {
   return useSyncExternalStore(keinAbo, () => new Date().getHours(), () => null);
 }
+
+// Uhr: ein gemeinsamer Takt für alle Abonnenten (alle 10 s reicht für Minutenanzeige).
+let jetzt = 0;
+function abonniereUhr(melden: () => void) {
+  const t = setInterval(() => {
+    jetzt = Date.now();
+    melden();
+  }, 10_000);
+  return () => clearInterval(t);
+}
+
+/** Aktuelle Zeit (Millisekunden), aktualisiert alle 10 s; null beim Bauen. */
+export function useJetzt(): number | null {
+  return useSyncExternalStore(
+    abonniereUhr,
+    () => {
+      // Erster Aufruf im Browser: sofort echte Zeit, danach nur beim Takt ändern (stabiler Schnappschuss).
+      if (jetzt === 0) jetzt = Date.now();
+      return jetzt;
+    },
+    () => null,
+  );
+}

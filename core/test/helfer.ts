@@ -18,6 +18,7 @@ export const BEISPIEL_STATUS: Systemstatus = {
   speicher: [{ pfad: "/", gesamtGb: 100, freiGb: 60 }],
   temperaturC: 45,
   laufzeitS: 3600,
+  netzwerk: { schnittstelle: "eth0", empfangenBytes: 1000, gesendetBytes: 500 },
   ampel: "gruen",
   hinweise: [],
 };

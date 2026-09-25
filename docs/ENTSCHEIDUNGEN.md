@@ -29,6 +29,8 @@ Jede Architekturentscheidung wird hier mit Datum und Begründung festgehalten.
 | 23 | 25.09.2026 | lion-ui als **statischer Next.js-Export**, von Caddy ausgeliefert, gleiche Adresse wie `/api` | Kein zusätzlicher Node-Server, kein CORS, Sitzungs-Cookie bleibt `SameSite=Strict`; Oberfläche und API getrennt testbar | Next.js-Server (mehr RAM, zweiter Dienst), UI in lion-core ausliefern |
 | 24 | 25.09.2026 | Content-Security-Policy mit `'self'`, Skripte mit `'unsafe-inline'` | Next.js-Export bettet Start-Skripte ein; alle fremden Quellen bleiben ausgeschlossen | Nonces (brauchen einen Server pro Anfrage) |
 | 25 | 25.09.2026 | Oberfläche nur **dunkel**, Schriften selbst gehostet (Space Grotesk, Manrope, JetBrains Mono) | Ein geprüftes Farbschema (Kontrast AA) statt zwei; funktioniert ohne Internet, kein Abruf bei Google | Hell/Dunkel umschaltbar – später möglich, Tokens sind vorbereitet |
+| 26 | 25.09.2026 | Startseite als **Schreibtisch wie ZimaOS**: Widgets links, App-Kacheln rechts, kein Menü | Einsteiger finden alles auf einer Seite; Apps sind das Wichtigste und stehen auf dem Handy oben | Seitenleiste mit Menüpunkten (erster Entwurf) |
+| 27 | 25.09.2026 | Netzwerk-Rate wird in der Oberfläche aus Zählern berechnet | lion-core bleibt zustandslos (liefert nur /proc/net/dev-Summen), der Verlauf lebt nur im Browser | Verlauf in lion-core speichern |
 
 ## Offen
 

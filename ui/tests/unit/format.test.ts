@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aktionText, anteil, begruessung, dauer, kennzahlen, ton, zahl } from "@/lib/format";
+import { aktionText, anteil, begruessung, datumLang, dauer, kennzahlen, speicherName, speicherZustand, ton, uhrzeit, zahl } from "@/lib/format";
 import type { Systemstatus } from "@/lib/typen";
 
 const STATUS: Systemstatus = {
@@ -13,6 +13,7 @@ const STATUS: Systemstatus = {
   ],
   temperaturC: 80,
   laufzeitS: 3 * 86400 + 4 * 3600,
+  netzwerk: null,
   ampel: "rot",
   hinweise: [],
 };
@@ -79,11 +80,31 @@ describe("kennzahlen", () => {
 
   it("lässt nicht eingebundene Speicher weg und färbt volle rot", () => {
     expect(k.speicher).toHaveLength(1);
-    expect(k.speicher[0]).toMatchObject({ pfad: "/", wert: "95 %", ton: "rot", detail: "5 von 100 GB frei" });
+    expect(k.speicher[0]).toMatchObject({ pfad: "/", wert: "95 %", ton: "rot", detail: "5 von 100 GB frei", belegtGb: 95, gesamtGb: 100 });
   });
 
   it("Temperatur: gelb ab 75 °C, null ohne Sensor", () => {
     expect(k.temperatur).toMatchObject({ wert: "80 °C", ton: "gelb" });
     expect(kennzahlen({ ...STATUS, temperaturC: null }).temperatur).toBeNull();
+  });
+});
+
+describe("Uhr und Speicher-Zustand", () => {
+  it("zeigt Uhrzeit und Datum deutsch", () => {
+    const d = new Date(2026, 6, 14, 16, 32);
+    expect(uhrzeit(d)).toBe("16:32");
+    expect(datumLang(d)).toBe("Dienstag, 14. Juli 2026");
+  });
+
+  it("Speicher bekommt verständliche Namen", () => {
+    expect(speicherName("/")).toBe("System");
+    expect(speicherName("/srv/lion")).toBe("Daten");
+    expect(speicherName("/mnt/usb")).toBe("/mnt/usb");
+  });
+
+  it("Speicher-Zustand in einem Wort", () => {
+    expect(speicherZustand("gruen")).toBe("Gesund");
+    expect(speicherZustand("gelb")).toBe("Wird knapp");
+    expect(speicherZustand("rot")).toBe("Fast voll");
   });
 });

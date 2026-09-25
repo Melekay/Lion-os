@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { Rahmen } from "@/components/Rahmen";
-import { Uebersicht } from "@/components/seiten/Uebersicht";
+import { Startseite } from "@/components/seiten/Startseite";
 
 // Die Titel-Vorlage aus dem Layout gilt nicht für die Startseite im selben Segment.
-export const metadata: Metadata = { title: { absolute: "Übersicht · Lion OS" } };
+export const metadata: Metadata = { title: { absolute: "Lion OS" } };
 
 export default function Seite() {
   return (
     <Rahmen>
-      <Uebersicht />
+      <Startseite />
     </Rahmen>
   );
 }
