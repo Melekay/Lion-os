@@ -3,7 +3,7 @@
 import { Lock, ShieldCheck } from "lucide-react";
 import { useAbfrage } from "@/lib/abfrage";
 import { lion } from "@/lib/api";
-import { beschaeftigt, kategorien, kategorieText } from "@/lib/apps";
+import { beschaeftigt, kategorien, kategorieText, liveAnzeige } from "@/lib/apps";
 import { useHostname } from "@/lib/browser";
 import { useState } from "react";
 import { AppKarte } from "../AppKarte";
@@ -14,6 +14,7 @@ export function Apps() {
   const { daten, fehler, neuLaden } = useAbfrage(lion.apps, (d) => (d && beschaeftigt(d.apps) ? 2_000 : 15_000));
   // Für die RAM-Warnung vor der Installation. Fehlt der Wert, gibt es einfach keine Warnung.
   const { daten: system } = useAbfrage(lion.system, 30_000);
+  const { daten: live } = useAbfrage(lion.appRessourcen, 10_000);
   const hostname = useHostname();
   const [filter, setFilter] = useState<string>("alle");
   const liste = daten?.apps ?? [];
@@ -63,7 +64,7 @@ export function Apps() {
       {daten && (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {sichtbar.map((a) => (
-            <AppKarte key={a.id} app={a} hostname={hostname} system={system} onGeaendert={neuLaden} />
+            <AppKarte key={a.id} app={a} hostname={hostname} system={system} live={liveAnzeige(live?.apps[a.id], system?.ramGesamtMb)} onGeaendert={neuLaden} />
           ))}
         </div>
       )}

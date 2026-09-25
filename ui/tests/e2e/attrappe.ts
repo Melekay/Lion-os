@@ -72,6 +72,8 @@ export class Attrappe {
     },
   ];
 
+  ressourcen: Record<string, { cpuProzent: number; ramMb: number }> = {};
+
   appProtokolle: Record<string, string[]> = {
     filebrowser: ["app-1  | 2026/09/25 10:00:00 User 'admin' initialized with randomly generated password: Xy7-geheim"],
   };
@@ -230,6 +232,7 @@ export class Attrappe {
       return this.json(route, 200, { apps: this.apps });
     }
 
+    if (pfad === "/api/apps/ressourcen") return this.json(route, 200, { apps: this.ressourcen });
     if (pfad === "/api/apps/jellyfin/logo") {
       return route.fulfill({ status: 200, contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#7c3aed"/></svg>' });
     }

@@ -42,6 +42,11 @@ describe.skipIf(!aktiv)("Echte Installation mit Docker", () => {
     expect(antwort).toBeGreaterThanOrEqual(200);
     expect(antwort).toBeLessThan(400);
 
+    // Live-Werte: echte Abfrage über docker ps + docker stats.
+    const live = await laufzeit.ressourcen();
+    expect(live.get("lion-app-uptime-kuma")?.ramMb).toBeGreaterThan(1);
+    expect((await apps.ressourcen(2))["uptime-kuma"]?.ramMb).toBeGreaterThan(1);
+
     apps.stoppen("uptime-kuma", "test");
     await apps.warteAuf("uptime-kuma");
     expect((await status())?.status).toBe("gestoppt");

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { AppFehler, AppVerwaltung, bereinigeProtokoll, legeDatenordnerAn } from "../src/apps.js";
+import { AppFehler, AppVerwaltung, bereinigeProtokoll, legeDatenordnerAn, normiereRessourcen } from "../src/apps.js";
 import { letzteEintraege } from "../src/audit.js";
 import type { CaddyVerwaltung } from "../src/caddy.js";
 import { oeffneDatenbank } from "../src/datenbank.js";
@@ -26,6 +26,9 @@ class AttrappenLaufzeit implements Laufzeit {
   async entfernen(p: string) { this.tu("entfernen", p); this.zustand.delete(p); }
   async status(p: string) { return this.zustand.get(p) ?? "gestoppt"; }
   protokollText = "";
+  ressourcenAufrufe = 0;
+  ressourcenWert = new Map<string, { cpuProzent: number; ramMb: number }>();
+  async ressourcen() { this.ressourcenAufrufe++; return this.ressourcenWert; }
   async protokoll(p: string) { this.tu("protokoll", p); return this.protokollText; }
 }
 
@@ -233,5 +236,36 @@ describe("Starten, Stoppen, Entfernen", () => {
     const { apps } = await aufbau();
     expect(() => apps.starten("uptime-kuma", "admin")).toThrow(/nicht installiert/);
     expect(() => apps.entfernen("uptime-kuma", "admin", "uptime-kuma")).toThrow(/nicht installiert/);
+  });
+});
+
+describe("Live-Werte", () => {
+  it("rechnet CPU auf die ganze Maschine um und nutzt App-IDs", () => {
+    const m = new Map([
+      ["lion-app-immich", { cpuProzent: 150, ramMb: 1234.6 }],
+      ["lion-app-mealie", { cpuProzent: 0.4, ramMb: 180 }],
+    ]);
+    expect(normiereRessourcen(m, 4)).toEqual({ immich: { cpuProzent: 37.5, ramMb: 1235 }, mealie: { cpuProzent: 0.1, ramMb: 180 } });
+    expect(normiereRessourcen(new Map([["lion-app-x", { cpuProzent: 900, ramMb: -1 }]]), 4)).toEqual({ x: { cpuProzent: 100, ramMb: 0 } });
+    expect(normiereRessourcen(new Map([["lion-app-x", { cpuProzent: 50, ramMb: 1 }]]), 0).x?.cpuProzent).toBe(50);
+  });
+
+  it("fragt Docker höchstens alle 10 Sekunden", async () => {
+    const { apps, laufzeit } = await aufbau();
+    laufzeit.ressourcenWert = new Map([["lion-app-jellyfin", { cpuProzent: 20, ramMb: 300 }]]);
+    const t = 1_000_000;
+    expect(await apps.ressourcen(2, t)).toEqual({ jellyfin: { cpuProzent: 10, ramMb: 300 } });
+    await apps.ressourcen(2, t + 9_000);
+    expect(laufzeit.ressourcenAufrufe).toBe(1);
+    await apps.ressourcen(2, t + 10_500);
+    expect(laufzeit.ressourcenAufrufe).toBe(2);
+  });
+
+  it("liefert bei Docker-Fehlern eine leere Liste statt eines Fehlers", async () => {
+    const { apps, laufzeit } = await aufbau();
+    laufzeit.ressourcen = async () => {
+      throw new Error("docker nicht erreichbar");
+    };
+    expect(await apps.ressourcen(4)).toEqual({});
   });
 });

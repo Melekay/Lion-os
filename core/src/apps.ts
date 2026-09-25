@@ -5,7 +5,7 @@ import { protokolliere } from "./audit.js";
 import type { CaddyVerwaltung } from "./caddy.js";
 import type { Datenbank } from "./datenbank.js";
 import { appDatenOrdner, type Vorlage } from "./katalog.js";
-import type { AppStatus, Laufzeit } from "./laufzeit.js";
+import type { AppStatus, Laufzeit, Ressourcen } from "./laufzeit.js";
 
 /**
  * App-Verwaltung: installieren, starten, stoppen, entfernen.
@@ -64,8 +64,14 @@ export type AppVerwaltungOptionen = {
 const projektName = (id: string) => `lion-app-${id}`;
 export const erzeugeGeheimnis = () => randomBytes(32).toString("hex");
 
+/** Live-Werte je App. CPU in % der ganzen Maschine (alle Kerne = 100 %), RAM in MB. */
+export type AppRessourcen = { cpuProzent: number; ramMb: number };
+
+const RESSOURCEN_CACHE_MS = 10_000;
+
 export class AppVerwaltung {
   private aufgaben = new Map<string, Promise<void>>();
+  private ressourcenCache: { zeit: number; laden: Promise<Record<string, AppRessourcen>> } | null = null;
 
   constructor(private readonly o: AppVerwaltungOptionen) {}
 
@@ -219,6 +225,20 @@ export class AppVerwaltung {
     });
   }
 
+  /**
+   * Live-Verbrauch aller laufenden Apps. `docker stats` braucht rund zwei Sekunden –
+   * deshalb teilen sich alle Anfragen innerhalb von 10 s ein Ergebnis. Fehler → leere Liste.
+   */
+  ressourcen(kerne: number, jetzt = Date.now()): Promise<Record<string, AppRessourcen>> {
+    if (this.ressourcenCache && jetzt - this.ressourcenCache.zeit < RESSOURCEN_CACHE_MS) return this.ressourcenCache.laden;
+    const laden = this.o.laufzeit
+      .ressourcen()
+      .then((m) => normiereRessourcen(m, kerne))
+      .catch(() => ({}));
+    this.ressourcenCache = { zeit: jetzt, laden };
+    return laden;
+  }
+
   /** SVG-Logo einer App aus dem Katalog (beim Laden geprüft), sonst null. */
   logo(id: string): string | null {
     return this.vorlage(id).logo;
@@ -306,4 +326,18 @@ export function bereinigeProtokoll(text: string): string[] {
     .map((z) => (z.length > 2000 ? `${z.slice(0, 2000)} …` : z))
     .filter((z) => z.trim() !== "")
     .slice(-MAX_ZEILEN);
+}
+
+/** Projektname → App-ID, CPU auf die ganze Maschine umgerechnet (Docker zählt 100 % pro Kern), gerundet. */
+export function normiereRessourcen(m: Map<string, Ressourcen>, kerne: number): Record<string, AppRessourcen> {
+  const ergebnis: Record<string, AppRessourcen> = {};
+  const k = Math.max(1, kerne);
+  for (const [projekt, r] of m) {
+    const id = projekt.replace(/^lion-app-/, "");
+    ergebnis[id] = {
+      cpuProzent: Math.round(Math.min(100, Math.max(0, r.cpuProzent / k)) * 10) / 10,
+      ramMb: Math.round(Math.max(0, r.ramMb)),
+    };
+  }
+  return ergebnis;
 }

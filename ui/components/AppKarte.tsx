@@ -1,9 +1,9 @@
 "use client";
 
-import { ExternalLink, Film, FolderOpen, MemoryStick, Play, Plus, ScrollText, ShieldAlert, Square, Trash2 } from "lucide-react";
+import { Activity, ExternalLink, Film, FolderOpen, MemoryStick, Play, Plus, ScrollText, ShieldAlert, Square, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { lion } from "@/lib/api";
-import { aktionen, besteAdresse, kategorieText, medienText, ramText, ramWarnung, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
+import { aktionen, besteAdresse, kategorieText, type LiveAnzeige, medienText, ramText, ramWarnung, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
 import type { AppAnsicht, Systemstatus } from "@/lib/typen";
 import { AppSymbol } from "./AppSymbol";
 import { EntfernenDialog } from "./EntfernenDialog";
@@ -14,12 +14,15 @@ export function AppKarte({
   app,
   hostname,
   system,
+  live,
   onGeaendert,
 }: {
   app: AppAnsicht;
   hostname: string;
   /** Aktuelle Messwerte für die RAM-Warnung (fehlen sie, gibt es keine Warnung). */
   system?: Systemstatus | null;
+  /** Aktueller Verbrauch, wenn die App läuft. */
+  live?: LiveAnzeige | null;
   onGeaendert: () => void;
 }) {
   const [sendet, setSendet] = useState<string | null>(null);
@@ -104,6 +107,16 @@ export function AppKarte({
         <Hinweis ton={ram.stufe} titel={ram.titel} rolle="note">
           {ram.text}
         </Hinweis>
+      )}
+
+      {live && app.installiert?.status === "laeuft" && (
+        <p className="flex items-center gap-2 text-xs">
+          <Activity className="h-4 w-4 shrink-0 text-cyan-300" aria-hidden="true" />
+          <span>
+            Gerade: <strong className="font-semibold tabular-nums">{live.ramText}</strong> Arbeitsspeicher ·{" "}
+            <strong className="font-semibold tabular-nums">{live.cpuText}</strong> CPU
+          </span>
+        </p>
       )}
 
       {app.ramMinMb ? (

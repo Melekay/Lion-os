@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aktionen, besteAdresse, beschaeftigt, kategorien, kategorieText, medienText, ramText, ramWarnung, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
+import { aktionen, besteAdresse, beschaeftigt, kategorien, kategorieText, liveAnzeige, medienText, ramText, ramWarnung, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
 import type { AppAnsicht, AppStatus } from "@/lib/typen";
 
 const app = (status?: AppStatus): AppAnsicht => ({
@@ -108,5 +108,24 @@ describe("RAM-Warnung", () => {
     expect(ramWarnung(4096, geraet(0, 0))).toBeNull();
     expect(ramWarnung(undefined, geraet(1024, 100))).toBeNull();
     expect(ramWarnung(0, geraet(1024, 100))).toBeNull();
+  });
+});
+
+describe("Live-Werte", () => {
+  it("formatiert RAM und CPU und rechnet Anteile", () => {
+    const l = liveAnzeige({ cpuProzent: 2.34, ramMb: 312.4 }, 8192)!;
+    expect(l.ramText).toBe("312 MB");
+    expect(l.cpuText).toBe("2,3 %");
+    expect(l.ramAnteil).toBeCloseTo(312.4 / 8192);
+    expect(l.cpuAnteil).toBeCloseTo(0.0234);
+    expect(l.satz).toBe("312 MB Arbeitsspeicher, 2,3 % CPU");
+    expect(liveAnzeige({ cpuProzent: 37.5, ramMb: 1234 }, 8192)?.ramText).toBe("1,2 GB");
+    expect(liveAnzeige({ cpuProzent: 37.5, ramMb: 1234 }, 8192)?.cpuText).toBe("38 %");
+    expect(liveAnzeige({ cpuProzent: 0, ramMb: 5 }, 8192)?.cpuText).toBe("0 %");
+  });
+
+  it("ohne Messung nichts, ohne Gesamt-RAM kein Anteil", () => {
+    expect(liveAnzeige(undefined, 8192)).toBeNull();
+    expect(liveAnzeige({ cpuProzent: 1, ramMb: 100 }, undefined)?.ramAnteil).toBe(0);
   });
 });
