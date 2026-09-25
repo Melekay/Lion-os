@@ -538,6 +538,10 @@ installiere_core() {
   ausfuehren env -C "$ziel" PATH="$pfad" "$npm" ci --ignore-scripts --no-audit --no-fund --loglevel=error
   ausfuehren env -C "$ziel" PATH="$pfad" "$npm" run --silent build
   ausfuehren env -C "$ziel" PATH="$pfad" "$npm" prune --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error
+  # lion-helper führt diesen Code als root aus: alles gehört root, niemand sonst darf schreiben.
+  # (cp -a übernimmt sonst den Besitzer aus dem Repository, npm legt Dateien je nach Umgebung anders an.)
+  ausfuehren chown -R root:root "$ziel"
+  ausfuehren chmod -R go-w "$ziel"
   ok "lion-core gebaut ($ziel)."
 }
 

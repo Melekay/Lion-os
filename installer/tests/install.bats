@@ -129,6 +129,17 @@ os_release() {
   done
 }
 
+@test "installiere_core macht den Code root-eigen und für andere schreibgeschützt (lion-helper läuft als root)" {
+  DRY_RUN=1
+  mkdir -p "$TMP/repo/core"
+  touch "$TMP/repo/core/package-lock.json"
+  pfad_repo() { printf '%s' "$TMP/repo"; }
+  run installiere_core
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"chown -R root:root $LION_ROOT/opt/lion/core"* ]]
+  [[ "$output" == *"chmod -R go-w $LION_ROOT/opt/lion/core"* ]]
+}
+
 @test "lion-core startet nach lion-helper" {
   run render_core_unit
   [[ "$output" == *"Wants=lion.service lion-helper.service"* ]]
