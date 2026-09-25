@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aktionen, besteAdresse, beschaeftigt, kategorien, kategorieText, medienText, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
+import { aktionen, besteAdresse, beschaeftigt, kategorien, kategorieText, medienText, ramText, ramWarnung, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
 import type { AppAnsicht, AppStatus } from "@/lib/typen";
 
 const app = (status?: AppStatus): AppAnsicht => ({
@@ -76,5 +76,37 @@ describe("Texte", () => {
     expect(medienText("schreiben")).toMatch(/Verwaltet/);
     expect(medienText("keine")).toBeNull();
     expect(medienText(undefined)).toBeNull();
+  });
+});
+
+describe("RAM-Warnung", () => {
+  const geraet = (ramGesamtMb: number, ramFreiMb: number) => ({ ramGesamtMb, ramFreiMb });
+
+  it("schreibt Größen verständlich", () => {
+    expect(ramText(512)).toBe("512 MB");
+    expect(ramText(4096)).toBe("4 GB");
+    expect(ramText(1536)).toBe("1,5 GB");
+  });
+
+  it("rot, wenn das Gerät insgesamt zu wenig hat", () => {
+    const w = ramWarnung(8192, geraet(4096, 3000));
+    expect(w?.stufe).toBe("rot");
+    expect(w?.text).toContain("mindestens 8 GB");
+    expect(w?.text).toContain("insgesamt nur 4 GB");
+  });
+
+  it("gelb, wenn gerade zu wenig frei ist", () => {
+    const w = ramWarnung(4096, geraet(8192, 2048));
+    expect(w?.stufe).toBe("gelb");
+    expect(w?.text).toContain("frei sind gerade 2 GB");
+  });
+
+  it("keine Warnung bei genug Speicher, ohne Messwerte oder ohne Angabe", () => {
+    expect(ramWarnung(1024, geraet(8192, 4096))).toBeNull();
+    expect(ramWarnung(4096, geraet(8192, 4096))).toBeNull();
+    expect(ramWarnung(4096, null)).toBeNull();
+    expect(ramWarnung(4096, geraet(0, 0))).toBeNull();
+    expect(ramWarnung(undefined, geraet(1024, 100))).toBeNull();
+    expect(ramWarnung(0, geraet(1024, 100))).toBeNull();
   });
 });

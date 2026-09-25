@@ -30,6 +30,10 @@ export type AppAnsicht = {
   sicherheitsstufe: string;
   hinweise: string[];
   medien: "keine" | "lesen" | "schreiben";
+  /** Empfohlener freier Arbeitsspeicher in MB (aus lion-app.yaml). */
+  ramMinMb: number;
+  /** Adresse des Original-Logos (null: die Oberfläche zeigt ein eigenes Symbol). */
+  logo: string | null;
   installiert: null | {
     status: GespeicherterStatus | AppStatus;
     meldung: string | null;
@@ -215,6 +219,11 @@ export class AppVerwaltung {
     });
   }
 
+  /** SVG-Logo einer App aus dem Katalog (beim Laden geprüft), sonst null. */
+  logo(id: string): string | null {
+    return this.vorlage(id).logo;
+  }
+
   /** Die letzten Zeilen aus dem Protokoll der App-Container (z. B. für ein Start-Passwort). */
   async protokoll(id: string): Promise<{ zeilen: string[] }> {
     this.vorlage(id);
@@ -226,7 +235,7 @@ export class AppVerwaltung {
   async liste(): Promise<AppAnsicht[]> {
     const adressen = await this.o.caddy.adressen();
     return Promise.all(
-      this.o.vorlagen.map(async ({ manifest: m }) => {
+      this.o.vorlagen.map(async ({ manifest: m, logo }) => {
         const z = this.zeile(m.id);
         let installiert: AppAnsicht["installiert"] = null;
         if (z) {
@@ -252,6 +261,8 @@ export class AppVerwaltung {
           sicherheitsstufe: m.sicherheitsstufe,
           hinweise: m.hinweise,
           medien: m.medien,
+          ramMinMb: m.ressourcen.ram_min_mb,
+          logo: logo === null ? null : `/api/apps/${m.id}/logo`,
           installiert,
         };
       }),

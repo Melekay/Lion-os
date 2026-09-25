@@ -117,10 +117,14 @@ test.describe("Startseite", () => {
     await page.clock.runFor(5_000);
     await page.clock.runFor(5_000);
     const bild = page.getByRole("img", { name: /Netzwerk-Verlauf/ });
-    await expect(bild).toHaveAttribute("aria-label", /^Netzwerk-Verlauf\. Empfangen (25|50) kB\/s, gesendet (4|8) kB\/s\.$/);
+    await expect(bild).toHaveAttribute("aria-label", /^Netzwerk-Verlauf\. Empfangen [\d,]+ kB\/s, gesendet [\d,]+ kB\/s\.$/);
     const label = (await bild.getAttribute("aria-label")) ?? "";
-    const [runter, hoch] = [...label.matchAll(/(\d+) kB/g)].map((m) => Number(m[1]));
-    expect((runter ?? 0) / (hoch ?? 1)).toBeCloseTo(6.25, 1);
+    // Deutsche Zahlen („7,9“). Die echte Zeit zwischen zwei Abfragen schwankt leicht – deshalb Bereich statt exakter Wert.
+    const [runter, hoch] = [...label.matchAll(/([\d,]+) kB/g)].map((m) => Number(m[1]!.replace(",", ".")));
+    expect(runter).toBeGreaterThan(20);
+    expect(runter).toBeLessThanOrEqual(50);
+    expect((runter ?? 0) / (hoch ?? 1)).toBeGreaterThan(5.5);
+    expect((runter ?? 0) / (hoch ?? 1)).toBeLessThan(7);
   });
 
   test("Kacheln: laufende App öffnet sich direkt, andere führen in den App Store", async ({ page }) => {
@@ -271,6 +275,15 @@ test.describe("Apps", () => {
     await expect(page.getByRole("article")).toHaveCount(4);
   });
 
+  test("Apps mit Logo zeigen das Original-Logo, andere ein eigenes Symbol", async ({ page }) => {
+    await page.goto("/apps/");
+    const logo = page.getByRole("article").filter({ hasText: "Jellyfin" }).locator("img");
+    await expect(logo).toHaveAttribute("src", "/api/apps/jellyfin/logo");
+    await expect(logo).toHaveAttribute("alt", "");
+    await expect.poll(() => logo.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
+    await expect(page.getByRole("article").filter({ hasText: "Uptime Kuma" }).locator("img")).toHaveCount(0);
+  });
+
   test("Medien-Apps zeigen ihren Zugriff auf den Medienordner", async ({ page }) => {
     await page.goto("/apps/");
     await expect(page.getByRole("article").filter({ hasText: "Jellyfin" })).toContainText("Liest den Medienordner (nur lesen)");
@@ -301,6 +314,43 @@ test.describe("Apps", () => {
   test("nicht installierte Apps haben keinen Protokoll-Knopf", async ({ page }) => {
     await page.goto("/apps/");
     await expect(page.getByRole("article").filter({ hasText: "Jellyfin" }).getByRole("button", { name: "Protokoll" })).toHaveCount(0);
+  });
+
+  test("RAM-Warnung: gelb bei knappem, rot bei zu wenig Speicher; Installation erst nach Bestätigung", async ({ page }) => {
+    api.system = { ...api.system, ramGesamtMb: 8192, ramFreiMb: 2048 };
+    api.app("jellyfin").ramMinMb = 4096;
+    api.app("filebrowser").ramMinMb = 16384;
+    api.app("uptime-kuma").ramMinMb = 256;
+    await page.goto("/apps/");
+
+    const knapp = page.getByRole("article").filter({ hasText: "Jellyfin" });
+    await expect(knapp.getByRole("note")).toContainText("Arbeitsspeicher knapp");
+    await expect(knapp.getByRole("note")).toContainText("frei sind gerade 2 GB");
+    await expect(knapp).toContainText("Empfohlen: ab 4 GB freier Arbeitsspeicher");
+
+    const zuWenig = page.getByRole("article").filter({ hasText: "Dateimanager" });
+    await expect(zuWenig.getByRole("note")).toContainText("Zu wenig Arbeitsspeicher");
+    await expect(page.getByRole("article").filter({ hasText: "Uptime Kuma" }).getByRole("note")).toHaveCount(0);
+    await barrierefrei(page);
+
+    // Erster Klick fragt nur nach, Abbrechen sendet nichts.
+    await knapp.getByRole("button", { name: "Installieren" }).click();
+    await expect(knapp.getByRole("group", { name: "Installation trotz Warnung bestätigen" })).toBeVisible();
+    await knapp.getByRole("button", { name: "Abbrechen" }).click();
+    expect(api.anfragen.some((a) => a.pfad === "/api/apps/jellyfin/installieren")).toBe(false);
+
+    await knapp.getByRole("button", { name: "Installieren" }).click();
+    await knapp.getByRole("button", { name: "Trotzdem installieren" }).click();
+    await expect(knapp.getByText("Läuft", { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(knapp.getByRole("note")).toHaveCount(0);
+  });
+
+  test("ohne Warnung installiert ein Klick sofort", async ({ page }) => {
+    api.app("uptime-kuma").ramMinMb = 256;
+    await page.goto("/apps/");
+    const karte = page.getByRole("article").filter({ hasText: "Uptime Kuma" });
+    await karte.getByRole("button", { name: "Installieren" }).click();
+    await expect(karte.getByText("Wird installiert …")).toBeVisible();
   });
 
   test("sensible Apps sind gekennzeichnet", async ({ page }) => {
@@ -338,6 +388,19 @@ test.describe("Einstellungen", () => {
     await expect(geraete.getByText("Dieses Gerät")).toHaveCount(1);
     await expect(geraete.getByText("Anmeldezeit unbekannt")).toBeVisible();
     await barrierefrei(page);
+  });
+
+  test("Hintergrund wählen: sofort sichtbar und nach dem Neuladen noch da", async ({ page }) => {
+    await page.goto("/einstellungen/");
+    const wahl = page.getByRole("group", { name: "Hintergrund wählen" });
+    await expect(wahl.getByRole("button", { name: "Sonnenuntergang" })).toHaveAttribute("aria-pressed", "true");
+    await wahl.getByRole("button", { name: "Ozean" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-hintergrund", "ozean");
+    await expect(wahl.getByRole("button", { name: "Ozean" })).toHaveAttribute("aria-pressed", "true");
+    await barrierefrei(page);
+
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-hintergrund", "ozean");
   });
 
   test("Name der Box speichern: erscheint in der Kopfzeile; Fehler werden angezeigt", async ({ page }) => {

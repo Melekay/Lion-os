@@ -72,7 +72,7 @@ export function ProtokollDialog({ app, offen, onSchliessen }: { app: AppAnsicht;
           role="log"
           aria-label={`Protokoll von ${app.name}`}
           tabIndex={0}
-          className="max-h-[60vh] overflow-auto rounded-feld border border-linie bg-nacht p-3 font-mono text-xs leading-relaxed focus:border-gold focus:outline-none"
+          className="max-h-[60vh] overflow-auto rounded-feld border border-linie bg-grund p-3 font-mono text-xs leading-relaxed focus:border-gold focus:outline-none"
         >
           {zeilen === null && !fehler && <p className="text-gedaempft">Lade Protokoll …</p>}
           {zeilen?.length === 0 && <p className="text-gedaempft">Noch keine Einträge.</p>}

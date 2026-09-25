@@ -208,4 +208,19 @@ describe("App-Routen", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ zeilen: ["app-1  | gestartet"] });
   });
+
+  it("liefert Logos als SVG mit Sperr-CSP und nur angemeldet", async () => {
+    const { app } = await testServerMitApps();
+    const { cookie } = await einrichten(app);
+    expect((await app.inject({ url: "/api/apps/jellyfin/logo" })).statusCode).toBe(401);
+    const res = await app.inject({ url: "/api/apps/jellyfin/logo", headers: { cookie } });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toMatch(/^image\/svg\+xml/);
+    expect(res.headers["content-security-policy"]).toContain("default-src 'none'");
+    expect(res.headers["x-content-type-options"]).toBe("nosniff");
+    expect(res.body).toMatch(/<svg[\s>]/);
+    expect((await app.inject({ url: "/api/apps/gibtsnicht/logo", headers: { cookie } })).statusCode).toBe(404);
+    const liste = (await app.inject({ url: "/api/apps", headers: { cookie } })).json().apps as { id: string; logo: string | null }[];
+    expect(liste.find((a) => a.id === "jellyfin")?.logo).toBe("/api/apps/jellyfin/logo");
+  });
 });

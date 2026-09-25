@@ -150,6 +150,14 @@ describe("Datenordner und Medienordner", () => {
     expect(liste.find((a) => a.id === "filebrowser")?.medien).toBe("schreiben");
     expect(liste.find((a) => a.id === "mealie")?.medien).toBe("keine");
   });
+
+  it("liefert den empfohlenen Arbeitsspeicher jeder App mit", async () => {
+    const { apps } = await aufbau();
+    const liste = await apps.liste();
+    expect(liste.find((a) => a.id === "immich")?.ramMinMb).toBe(4096);
+    expect(liste.find((a) => a.id === "ollama")?.ramMinMb).toBe(8192);
+    expect(liste.every((a) => Number.isInteger(a.ramMinMb) && a.ramMinMb >= 0)).toBe(true);
+  });
 });
 
 describe("App-Protokoll", () => {

@@ -1,0 +1,24 @@
+/* In der Demo ersetzen diese @font-face-Regeln next/font (gleiche Variablen wie app/fonts.ts). */
+@font-face {
+  font-family: "Space Grotesk Lion";
+  src: url("../node_modules/@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2") format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Manrope Lion";
+  src: url("../node_modules/@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono Lion";
+  src: url("../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2") format("woff2");
+  font-weight: 100 800;
+  font-display: swap;
+}
+:root {
+  --font-display-face: "Space Grotesk Lion";
+  --font-body-face: "Manrope Lion";
+  --font-mono-face: "JetBrains Mono Lion";
+}

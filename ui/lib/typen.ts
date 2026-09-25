@@ -34,6 +34,10 @@ export type AppAnsicht = {
   hinweise: string[];
   /** Zugriff auf den gemeinsamen Medienordner. */
   medien?: "keine" | "lesen" | "schreiben";
+  /** Empfohlener freier Arbeitsspeicher in MB. */
+  ramMinMb?: number;
+  /** Adresse des Original-Logos; fehlt es, zeigt die Oberfläche ein eigenes Symbol. */
+  logo?: string | null;
   installiert: null | {
     status: AppStatus;
     meldung: string | null;

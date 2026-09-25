@@ -343,6 +343,22 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
     const name = (req: FastifyRequest) => req.benutzer?.name ?? "unbekannt";
 
     app.get("/api/apps", { preHandler: benoetigtAnmeldung }, async () => ({ apps: await apps.liste() }));
+    app.get("/api/apps/:id/logo", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
+      try {
+        const logo = apps.logo(id(req));
+        if (logo === null) return reply.code(404).send({ fehler: "Diese App hat kein Logo." });
+        // SVG kann Skripte enthalten: zusätzlich zur Katalog-Prüfung eine Sperr-CSP und kein MIME-Raten.
+        return reply
+          .header("content-type", "image/svg+xml; charset=utf-8")
+          .header("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+          .header("x-content-type-options", "nosniff")
+          .header("cache-control", "private, max-age=86400")
+          .send(logo);
+      } catch (e) {
+        if (e instanceof AppFehler) return reply.code(e.code).send({ fehler: e.message });
+        throw e;
+      }
+    });
     app.get("/api/apps/:id/protokoll", { preHandler: benoetigtAnmeldung }, mitFehlern((req) => apps.protokoll(id(req)), 200));
     app.post("/api/apps/:id/installieren", { preHandler: benoetigtAnmeldung }, mitFehlern((req) => apps.installieren(id(req), name(req))));
     app.post("/api/apps/:id/starten", { preHandler: benoetigtAnmeldung }, mitFehlern((req) => apps.starten(id(req), name(req))));

@@ -1,4 +1,5 @@
-import type { AppAnsicht, AppStatus } from "./typen";
+import { zahl } from "./format";
+import type { AppAnsicht, AppStatus, Systemstatus } from "./typen";
 
 export type Ton = "gruen" | "gelb" | "rot" | "neutral" | "arbeitet";
 
@@ -100,5 +101,38 @@ export function kategorien(apps: AppAnsicht[]): string[] {
 export function medienText(medien: AppAnsicht["medien"]): string | null {
   if (medien === "lesen") return "Liest den Medienordner (nur lesen)";
   if (medien === "schreiben") return "Verwaltet den Medienordner";
+  return null;
+}
+
+/** „512 MB“, „4 GB“, „1,5 GB“ */
+export function ramText(mb: number): string {
+  if (mb < 1024) return `${zahl(mb)} MB`;
+  const gb = mb / 1024;
+  return `${zahl(gb, Number.isInteger(gb) ? 0 : 1)} GB`;
+}
+
+export type RamWarnung = { stufe: "gelb" | "rot"; titel: string; text: string };
+
+/**
+ * Warnt vor der Installation, wenn eine App mehr Arbeitsspeicher braucht, als das Gerät hat (rot)
+ * oder als gerade frei ist (gelb). Ohne Messwerte oder ohne Angabe der App: keine Warnung.
+ */
+export function ramWarnung(ramMinMb: number | undefined, system: Pick<Systemstatus, "ramGesamtMb" | "ramFreiMb"> | null | undefined): RamWarnung | null {
+  if (!ramMinMb || !system || !(system.ramGesamtMb > 0)) return null;
+  const braucht = ramText(ramMinMb);
+  if (ramMinMb > system.ramGesamtMb) {
+    return {
+      stufe: "rot",
+      titel: "Zu wenig Arbeitsspeicher",
+      text: `Diese App braucht mindestens ${braucht}. Dein Gerät hat insgesamt nur ${ramText(system.ramGesamtMb)}. Sie startet wahrscheinlich nicht oder bremst alles aus.`,
+    };
+  }
+  if (ramMinMb > system.ramFreiMb) {
+    return {
+      stufe: "gelb",
+      titel: "Arbeitsspeicher knapp",
+      text: `Diese App braucht mindestens ${braucht}, frei sind gerade ${ramText(Math.max(system.ramFreiMb, 0))}. Stoppe vorher andere Apps, sonst kann das Gerät langsam werden.`,
+    };
+  }
   return null;
 }

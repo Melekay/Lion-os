@@ -12,6 +12,8 @@ import { Hinweis, Lader, SeitenKopf } from "../ui";
 export function Apps() {
   // Solange eine App installiert oder entfernt wird: alle 2 s nachfragen, sonst alle 15 s.
   const { daten, fehler, neuLaden } = useAbfrage(lion.apps, (d) => (d && beschaeftigt(d.apps) ? 2_000 : 15_000));
+  // Für die RAM-Warnung vor der Installation. Fehlt der Wert, gibt es einfach keine Warnung.
+  const { daten: system } = useAbfrage(lion.system, 30_000);
   const hostname = useHostname();
   const [filter, setFilter] = useState<string>("alle");
   const liste = daten?.apps ?? [];
@@ -33,10 +35,10 @@ export function Apps() {
       />
       <ul className="mb-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gedaempft">
         <li className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-gold" aria-hidden="true" /> Vor der Installation automatisch geprüft
+          <ShieldCheck className="h-4 w-4 text-akzent" aria-hidden="true" /> Vor der Installation automatisch geprüft
         </li>
         <li className="flex items-center gap-2">
-          <Lock className="h-4 w-4 text-gold" aria-hidden="true" /> Eigener HTTPS-Port pro App
+          <Lock className="h-4 w-4 text-akzent" aria-hidden="true" /> Eigener HTTPS-Port pro App
         </li>
       </ul>
       {fehler && <Hinweis ton="rot" titel="Apps konnten nicht geladen werden">{fehler}</Hinweis>}
@@ -61,7 +63,7 @@ export function Apps() {
       {daten && (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {sichtbar.map((a) => (
-            <AppKarte key={a.id} app={a} hostname={hostname} onGeaendert={neuLaden} />
+            <AppKarte key={a.id} app={a} hostname={hostname} system={system} onGeaendert={neuLaden} />
           ))}
         </div>
       )}

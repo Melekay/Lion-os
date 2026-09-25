@@ -13,10 +13,10 @@ import { Feld, Hinweis, Knopf, Lader, SeitenKopf, StatusPille } from "../ui";
 function Abschnitt({ titel, icon: Icon, text, children }: { titel: string; icon: typeof Archive; text?: string; children: React.ReactNode }) {
   const id = useId();
   return (
-    <section aria-labelledby={id} className="rounded-karte border border-white/[0.06] bg-flaeche/80 p-5 shadow-karte backdrop-blur-md">
+    <section aria-labelledby={id} className="rounded-karte border border-glas bg-flaeche/80 p-5 shadow-karte backdrop-blur-md">
       <div className="mb-5 flex items-start gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-flaeche-2" aria-hidden="true">
-          <Icon className="h-5 w-5 text-gold" />
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-glas bg-flaeche-2" aria-hidden="true">
+          <Icon className="h-5 w-5 text-akzent" />
         </span>
         <div>
           <h2 id={id} className="text-lg font-semibold">
@@ -37,13 +37,13 @@ function SchluesselKarte({ schluessel, onFertig }: { schluessel: string; onFerti
   return (
     <section aria-labelledby="schluessel-titel" className="rounded-karte border-2 border-gold/60 bg-gold/[0.06] p-6 shadow-gold">
       <h2 id="schluessel-titel" className="flex items-center gap-2 text-xl font-semibold">
-        <KeyRound className="h-5 w-5 text-gold" aria-hidden="true" /> Dein Wiederherstellungsschlüssel
+        <KeyRound className="h-5 w-5 text-akzent" aria-hidden="true" /> Dein Wiederherstellungsschlüssel
       </h2>
       <p className="mt-2 text-sm text-text/90">
         Alle Sicherungen sind damit verschlüsselt. Geht diese Box kaputt, brauchst du ihn, um deine Daten auf einer neuen Box zurückzuholen.{" "}
         <strong>Schreib ihn auf Papier oder speichere ihn im Passwort-Manager – nicht nur auf dieser Box.</strong>
       </p>
-      <p className="my-5 select-all break-all rounded-feld border border-white/10 bg-nacht/80 p-4 text-center font-mono text-xl tracking-wider sm:text-2xl" aria-label="Schlüssel">
+      <p className="my-5 select-all break-all rounded-feld border border-linie bg-grund/80 p-4 text-center font-mono text-xl tracking-wider sm:text-2xl" aria-label="Schlüssel">
         {schluessel}
       </p>
       <div className="flex flex-wrap items-center gap-3">
@@ -63,7 +63,7 @@ function SchluesselKarte({ schluessel, onFertig }: { schluessel: string; onFerti
         </Knopf>
       </div>
       {onFertig && (
-        <div className="mt-5 space-y-4 border-t border-white/10 pt-5">
+        <div className="mt-5 space-y-4 border-t border-linie pt-5">
           <label className="flex items-start gap-3 text-sm">
             <input type="checkbox" checked={notiert} onChange={(e) => setNotiert(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[var(--gold)]" />
             Ich habe den Schlüssel sicher notiert – außerhalb dieser Box.
@@ -85,7 +85,7 @@ function Einrichten({ vorher, onFertig }: { vorher: BackupStatus; onFertig: (sch
   return (
     <Abschnitt titel={vorher.eingerichtet ? "Ziel ändern" : "Backup einrichten"} icon={Archive} text="Tägliche, verschlüsselte Sicherung auf eine zweite Festplatte.">
       <ol className="mb-5 list-decimal space-y-1.5 pl-5 text-sm text-text/90">
-        <li>Zweite Festplatte (z. B. USB) anschließen und auf dem Server einhängen, etwa unter <code className="text-gold">/mnt/usb-backup</code>.</li>
+        <li>Zweite Festplatte (z. B. USB) anschließen und auf dem Server einhängen, etwa unter <code className="text-akzent">/mnt/usb-backup</code>.</li>
         <li>Ordner und Uhrzeit eintragen.</li>
         <li>Den Wiederherstellungsschlüssel aufschreiben.</li>
       </ol>
@@ -157,7 +157,7 @@ function Status({ s, onJetzt }: { s: BackupStatus; onJetzt: () => void }) {
           </Hinweis>
         )}
         {fehler && <Hinweis ton="rot">{fehler}</Hinweis>}
-        <div className="flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-4">
+        <div className="flex flex-wrap items-center gap-3 border-t border-linie pt-4">
           <Knopf
             laedt={sendet || s.laeuft === "sicherung"}
             disabled={s.laeuft !== null}
@@ -286,7 +286,7 @@ function WiederherstellenDialog({
               id={`${id}-app`}
               value={app}
               onChange={(e) => setApp(e.target.value)}
-              className="block min-h-12 w-full rounded-feld border border-linie-hell bg-nacht/60 px-3 text-base focus:border-gold focus:outline-none"
+              className="block min-h-12 w-full rounded-feld border border-linie-hell bg-grund/60 px-3 text-base focus:border-gold focus:outline-none"
             >
               <option value="">Bitte wählen …</option>
               {apps.map((a) => (
@@ -300,14 +300,14 @@ function WiederherstellenDialog({
             <div className="space-y-3 text-sm text-text/90">
               <p>Die App wird kurz angehalten, ihre Daten aus der Sicherung zurückgeholt und danach wieder gestartet.</p>
               <p>
-                <strong className="text-gold">Nichts wird gelöscht:</strong> Die jetzigen Daten werden beiseitegelegt nach{" "}
-                <code className="break-all rounded bg-nacht px-1.5 py-0.5 text-xs">/srv/lion/apps/.{app}.vor-wiederherstellung-…</code>
+                <strong className="text-akzent">Nichts wird gelöscht:</strong> Die jetzigen Daten werden beiseitegelegt nach{" "}
+                <code className="break-all rounded bg-grund px-1.5 py-0.5 text-xs">/srv/lion/apps/.{app}.vor-wiederherstellung-…</code>
               </p>
             </div>
           )}
           <div className="space-y-1.5">
             <label htmlFor={`${id}-eingabe`} className="block text-sm font-semibold">
-              Zur Bestätigung {app ? <code className="rounded bg-nacht px-1.5 py-0.5 text-gold">{app}</code> : "die App-ID"} eintippen
+              Zur Bestätigung {app ? <code className="rounded bg-grund px-1.5 py-0.5 text-akzent">{app}</code> : "die App-ID"} eintippen
             </label>
             <input
               id={`${id}-eingabe`}
@@ -316,7 +316,7 @@ function WiederherstellenDialog({
               autoComplete="off"
               autoCapitalize="off"
               spellCheck={false}
-              className="block min-h-12 w-full rounded-feld border border-linie-hell bg-nacht/60 px-3.5 font-mono text-base focus:border-gold focus:outline-none"
+              className="block min-h-12 w-full rounded-feld border border-linie-hell bg-grund/60 px-3.5 font-mono text-base focus:border-gold focus:outline-none"
             />
           </div>
           {fehler && <Hinweis ton="rot">{fehler}</Hinweis>}

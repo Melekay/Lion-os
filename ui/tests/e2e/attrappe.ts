@@ -66,6 +66,7 @@ export class Attrappe {
       version: "10.11.11",
       sicherheitsstufe: "normal",
       medien: "lesen",
+      logo: "/api/apps/jellyfin/logo",
       hinweise: [],
       installiert: null,
     },
@@ -229,6 +230,9 @@ export class Attrappe {
       return this.json(route, 200, { apps: this.apps });
     }
 
+    if (pfad === "/api/apps/jellyfin/logo") {
+      return route.fulfill({ status: 200, contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#7c3aed"/></svg>' });
+    }
     const protokoll = pfad.match(/^\/api\/apps\/([^/]+)\/protokoll$/);
     if (protokoll && methode === "GET") {
       const a = this.app(decodeURIComponent(protokoll[1]!));

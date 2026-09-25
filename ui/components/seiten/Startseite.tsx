@@ -19,11 +19,11 @@ const PUNKT: Record<Ton, string> = {
   gelb: "bg-gelb",
   rot: "bg-rot",
   neutral: "bg-gedaempft",
-  arbeitet: "bg-gold text-gold puls",
+  arbeitet: "bg-gold text-akzent puls",
 };
 
 const KACHEL =
-  "group relative flex aspect-square flex-col items-center justify-center gap-3 rounded-karte border border-white/[0.06] bg-flaeche/70 p-3 text-center shadow-karte backdrop-blur-md transition hover:-translate-y-0.5 hover:border-gold/40 hover:bg-flaeche-2/90 focus-visible:-translate-y-0.5";
+  "group relative flex aspect-square flex-col items-center justify-center gap-3 rounded-karte border border-glas bg-flaeche/70 p-3 text-center shadow-karte backdrop-blur-md transition hover:-translate-y-0.5 hover:border-gold/40 hover:bg-flaeche-2/90 focus-visible:-translate-y-0.5";
 
 function Kachel({ href, extern, children, label }: { href: string; extern?: boolean; children: React.ReactNode; label: string }) {
   if (extern) {
@@ -50,7 +50,7 @@ function AppKachel({ app, hostname }: { app: AppAnsicht; hostname: string }) {
         extern={Boolean(adresse)}
         label={adresse ? app.name : `${app.name} – ${st.text}, im App Store verwalten`}
       >
-        <AppSymbol id={app.id} kategorie={app.kategorie} />
+        <AppSymbol id={app.id} kategorie={app.kategorie} logo={app.logo} />
         <span className="line-clamp-2 text-sm font-semibold">{app.name}</span>
         <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${PUNKT[st.ton]}`} title={st.text} aria-hidden="true" />
       </Kachel>
@@ -110,7 +110,7 @@ export function Startseite() {
             value={suche}
             onChange={(e) => setSuche(e.target.value)}
             placeholder="Apps suchen …"
-            className="block min-h-13 w-full rounded-karte border border-white/[0.06] bg-flaeche/80 pl-11 pr-4 text-base shadow-karte backdrop-blur-md placeholder:text-gedaempft focus:border-gold/60 focus:outline-none"
+            className="block min-h-13 w-full rounded-karte border border-glas bg-flaeche/80 pl-11 pr-4 text-base shadow-karte backdrop-blur-md placeholder:text-gedaempft focus:border-gold/60 focus:outline-none"
           />
         </label>
 
@@ -122,7 +122,7 @@ export function Startseite() {
             href="/apps/"
             aria-label="App hinzufügen"
             title="App hinzufügen"
-            className="grid h-10 w-10 place-items-center rounded-full text-gedaempft transition hover:bg-flaeche-2 hover:text-gold"
+            className="grid h-10 w-10 place-items-center rounded-full text-gedaempft transition hover:bg-flaeche-2 hover:text-akzent"
           >
             <Plus className="h-5 w-5" aria-hidden="true" />
           </Link>
@@ -170,7 +170,7 @@ export function Startseite() {
         </ul>
 
         {apps.daten && installiert.length === 0 && !begriff && (
-          <p className="rounded-karte border border-dashed border-white/10 p-5 text-sm text-gedaempft">
+          <p className="rounded-karte border border-dashed border-linie-hell p-5 text-sm text-gedaempft">
             Noch keine App installiert. Öffne den <strong className="text-text">App Store</strong> – zum Beispiel Uptime Kuma: Es überwacht deine Dienste und
             meldet Ausfälle.
           </p>

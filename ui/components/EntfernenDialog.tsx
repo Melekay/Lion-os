@@ -59,14 +59,14 @@ export function EntfernenDialog({
         <div id={`${id}-text`} className="space-y-3 text-sm text-text/90">
           <p>Die App wird gestoppt und gelöscht. Sie ist danach nicht mehr erreichbar.</p>
           <p>
-            <strong className="text-gold">Deine Daten bleiben erhalten</strong> im Ordner{" "}
-            <code className="break-all rounded bg-nacht px-1.5 py-0.5 text-xs">{app.installiert?.datenordner}</code>. Löschen musst du sie
+            <strong className="text-akzent">Deine Daten bleiben erhalten</strong> im Ordner{" "}
+            <code className="break-all rounded bg-grund px-1.5 py-0.5 text-xs">{app.installiert?.datenordner}</code>. Löschen musst du sie
             bewusst selbst.
           </p>
         </div>
         <div className="space-y-1.5">
           <label htmlFor={`${id}-eingabe`} className="block text-sm font-semibold">
-            Zur Bestätigung <code className="rounded bg-nacht px-1.5 py-0.5 text-gold">{app.id}</code> eintippen
+            Zur Bestätigung <code className="rounded bg-grund px-1.5 py-0.5 text-akzent">{app.id}</code> eintippen
           </label>
           <input
             id={`${id}-eingabe`}
@@ -75,7 +75,7 @@ export function EntfernenDialog({
             autoComplete="off"
             autoCapitalize="off"
             spellCheck={false}
-            className="block min-h-12 w-full rounded-feld border border-linie-hell bg-nacht/60 px-3.5 font-mono text-base focus:border-gold focus:outline-none"
+            className="block min-h-12 w-full rounded-feld border border-linie-hell bg-grund/60 px-3.5 font-mono text-base focus:border-gold focus:outline-none"
           />
         </div>
         <div className="flex flex-wrap justify-end gap-3">

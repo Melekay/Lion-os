@@ -49,7 +49,7 @@ export function Karte({
   id?: string;
 }) {
   return (
-    <Tag id={id} className={`rounded-karte border border-white/[0.06] bg-flaeche/80 shadow-karte backdrop-blur-md ${className}`}>
+    <Tag id={id} className={`rounded-karte border border-glas bg-flaeche/80 shadow-karte backdrop-blur-md ${className}`}>
       {children}
     </Tag>
   );
@@ -73,7 +73,7 @@ export function Feld({
         id={id}
         aria-invalid={fehler ? true : undefined}
         aria-describedby={beschreibung}
-        className={`block min-h-12 w-full rounded-feld border border-linie-hell bg-nacht/60 px-3.5 text-base text-text placeholder:text-gedaempft/70 transition focus:border-gold focus:outline-none focus-visible:outline-3 focus-visible:outline-fokus aria-[invalid=true]:border-rot ${className}`}
+        className={`block min-h-12 w-full rounded-feld border border-linie-hell bg-grund/60 px-3.5 text-base text-text placeholder:text-gedaempft/70 transition focus:border-gold focus:outline-none focus-visible:outline-3 focus-visible:outline-fokus aria-[invalid=true]:border-rot ${className}`}
         {...rest}
       />
       {hilfe && (
@@ -94,14 +94,25 @@ const HINWEIS = {
   gruen: { klasse: "border-gruen/40 bg-gruen-flaeche", icon: CheckCircle2, farbe: "text-gruen" },
   gelb: { klasse: "border-gelb/40 bg-gelb-flaeche", icon: AlertTriangle, farbe: "text-gelb" },
   rot: { klasse: "border-rot/40 bg-rot-flaeche", icon: XCircle, farbe: "text-rot" },
-  info: { klasse: "border-linie-hell bg-flaeche-2", icon: Info, farbe: "text-gold" },
+  info: { klasse: "border-linie-hell bg-flaeche-2", icon: Info, farbe: "text-akzent" },
 } as const;
 
-export function Hinweis({ ton = "info", titel, children }: { ton?: keyof typeof HINWEIS; titel?: string; children?: ReactNode }) {
+/** `rolle`: Standard ist eine Live-Meldung (alert/status). Für Hinweise, die schon beim Laden dastehen, „note“ nehmen. */
+export function Hinweis({
+  ton = "info",
+  titel,
+  rolle,
+  children,
+}: {
+  ton?: keyof typeof HINWEIS;
+  titel?: string;
+  rolle?: "alert" | "status" | "note";
+  children?: ReactNode;
+}) {
   const h = HINWEIS[ton];
   const Icon = h.icon;
   return (
-    <div role={ton === "rot" ? "alert" : "status"} className={`flex gap-3 rounded-feld border p-4 text-sm ${h.klasse}`}>
+    <div role={rolle ?? (ton === "rot" ? "alert" : "status")} className={`flex gap-3 rounded-feld border p-4 text-sm ${h.klasse}`}>
       <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${h.farbe}`} aria-hidden="true" />
       <div className="space-y-1">
         {titel && <p className="font-semibold text-text">{titel}</p>}
@@ -116,12 +127,12 @@ const PUNKT: Record<Ton, string> = {
   gelb: "bg-gelb text-gelb",
   rot: "bg-rot text-rot",
   neutral: "bg-gedaempft text-gedaempft",
-  arbeitet: "bg-gold text-gold puls",
+  arbeitet: "bg-gold text-akzent puls",
 };
 
 export function StatusPille({ ton, children }: { ton: Ton; children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-linie bg-nacht/50 px-2.5 py-1 text-xs font-semibold">
+    <span className="inline-flex items-center gap-2 rounded-full border border-linie bg-grund/50 px-2.5 py-1 text-xs font-semibold">
       <span className={`h-2 w-2 rounded-full ${PUNKT[ton]}`} aria-hidden="true" />
       {children}
     </span>
@@ -129,9 +140,9 @@ export function StatusPille({ ton, children }: { ton: Ton; children: ReactNode }
 }
 
 const BALKEN: Record<"gruen" | "gelb" | "rot", string> = {
-  gruen: "from-gold-dunkel to-gold",
-  gelb: "from-gelb/70 to-gelb",
-  rot: "from-rot/70 to-rot",
+  gruen: "from-emerald-400 to-cyan-400 shadow-[0_0_14px_rgba(34,211,238,0.55)]",
+  gelb: "from-amber-300 to-orange-500 shadow-[0_0_14px_rgba(251,146,60,0.55)]",
+  rot: "from-rose-400 to-red-500 shadow-[0_0_14px_rgba(244,63,94,0.6)]",
 };
 
 /** Füllstand mit Ampelfarbe (Gold = normal, Gelb/Rot = Grenze nahe). */
@@ -144,9 +155,57 @@ export function Messbalken({ anteil, ton, label }: { anteil: number; ton: "gruen
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={prozent}
-      className="h-2 w-full overflow-hidden rounded-full bg-flaeche-3"
+      className="h-2.5 w-full overflow-hidden rounded-full bg-flaeche-3"
     >
       <div className={`h-full rounded-full bg-linear-to-r transition-[width] duration-700 ${BALKEN[ton]}`} style={{ width: `${Math.max(prozent, 2)}%` }} />
+    </div>
+  );
+}
+
+/**
+ * Kennzahl-Kachel wie bei Homarr: kleine Überschrift, große Zahl, leuchtender Balken, Details als Chips.
+ * Die Zahl steht ohne Einheit groß da, die Einheit kleiner daneben.
+ */
+export function Kennzahl({
+  titel,
+  wert,
+  einheit,
+  anteil,
+  ton,
+  label,
+  chips = [],
+  rechts,
+}: {
+  titel: string;
+  wert: string;
+  einheit?: string;
+  anteil: number;
+  ton: "gruen" | "gelb" | "rot";
+  /** Name des Balkens für Screenreader, z. B. „Arbeitsspeicher belegt“. */
+  label: string;
+  chips?: string[];
+  rechts?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-feld border border-linie bg-flaeche-2 p-4">
+      <div className="flex min-h-6 items-center justify-between gap-2">
+        <p className="truncate text-xs font-semibold uppercase tracking-wider text-gedaempft">{titel}</p>
+        {rechts}
+      </div>
+      <p className="font-display text-4xl leading-none font-bold tracking-tight tabular-nums">
+        {wert}
+        {einheit && <span className="text-lg font-semibold text-gedaempft"> {einheit}</span>}
+      </p>
+      <Messbalken anteil={anteil} ton={ton} label={label} />
+      {chips.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5">
+          {chips.map((c) => (
+            <li key={c} className="rounded-full border border-linie bg-grund/40 px-2.5 py-1 text-xs font-semibold tabular-nums">
+              {c}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -154,7 +213,7 @@ export function Messbalken({ anteil, ton, label }: { anteil: number; ton: "gruen
 export function Lader({ text, vollbild = false }: { text: string; vollbild?: boolean }) {
   return (
     <div role="status" className={`flex items-center justify-center gap-3 text-gedaempft ${vollbild ? "min-h-dvh" : "py-16"}`}>
-      <Loader2 className="h-5 w-5 animate-spin text-gold" aria-hidden="true" />
+      <Loader2 className="h-5 w-5 animate-spin text-akzent" aria-hidden="true" />
       <span>{text}</span>
     </div>
   );
