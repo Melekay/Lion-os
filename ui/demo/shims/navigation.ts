@@ -32,7 +32,11 @@ export function gehe(ziel: string) {
   const normal = seite.endsWith("/") ? seite : `${seite}/`;
   if (normal !== pfad) {
     pfad = normal;
-    history.replaceState(null, "", `#${normal}`);
+    try {
+      history.replaceState(null, "", `#${normal}`);
+    } catch {
+      /* in abgeschotteten Rahmen (z. B. eingebettet) bleibt die Adresse einfach gleich */
+    }
     melden();
     window.scrollTo(0, 0);
   }

@@ -1,4 +1,4 @@
-import { StrictMode, useEffect } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "../app/globals.css";
 import "./schriften.css";
@@ -12,7 +12,7 @@ import { Einstellungen } from "../components/seiten/Einstellungen";
 import { Protokoll } from "../components/seiten/Protokoll";
 import { Startseite } from "../components/seiten/Startseite";
 import { DemoApi } from "./attrappe";
-import { usePathname } from "./shims/navigation";
+import { gehe, usePathname } from "./shims/navigation";
 
 /**
  * Lion OS als Demo: dieselben Seiten und Komponenten wie im echten Lion OS,
@@ -31,7 +31,7 @@ const SEITEN: Record<string, { titel: string; inhalt: () => React.ReactNode }> =
   "/einrichtung/": { titel: "Einrichtung · Lion OS", inhalt: () => <Einrichtung /> },
 };
 
-function DemoLeiste() {
+function DemoLeiste({ onZurueckgesetzt }: { onZurueckgesetzt: () => void }) {
   return (
     <div className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-gold/30 bg-nacht/95 px-4 py-2 text-center text-xs text-text/90 backdrop-blur">
       <span>
@@ -42,8 +42,8 @@ function DemoLeiste() {
         className="rounded-full border border-linie-hell px-3 py-1 font-semibold hover:border-gold"
         onClick={() => {
           api.zuruecksetzen();
-          location.hash = "#/";
-          location.reload();
+          gehe("/");
+          onZurueckgesetzt();
         }}
       >
         Demo zurücksetzen
@@ -55,14 +55,15 @@ function DemoLeiste() {
 function Demo() {
   const pfad = usePathname();
   const seite = SEITEN[pfad];
+  const [runde, setRunde] = useState(0);
   useEffect(() => {
     document.title = seite?.titel ?? "Nicht gefunden · Lion OS";
   }, [seite]);
   return (
     <>
-      <DemoLeiste />
-      {/* key: Seitenwechsel startet die Seite frisch – wie ein echter Seitenaufruf. */}
-      <div key={pfad}>{seite ? seite.inhalt() : <NichtGefunden />}</div>
+      <DemoLeiste onZurueckgesetzt={() => setRunde((r) => r + 1)} />
+      {/* key: Seitenwechsel (und Zurücksetzen) startet die Seite frisch – wie ein echter Seitenaufruf. */}
+      <div key={`${pfad}-${runde}`}>{seite ? seite.inhalt() : <NichtGefunden />}</div>
     </>
   );
 }
