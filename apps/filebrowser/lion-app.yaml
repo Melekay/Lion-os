@@ -1,0 +1,16 @@
+id: filebrowser
+name: Dateien
+beschreibung: Dateimanager im Browser für deinen Medienordner. Hochladen, sortieren, teilen – und Futter für Jellyfin, Navidrome und Audiobookshelf.
+version: "2.63.23"
+kategorie: dateien
+sicherheitsstufe: normal
+medien: schreiben
+web:
+  dienst: app
+  port: 80
+ressourcen:
+  ram_min_mb: 128
+hinweise:
+  - Benutzername ist „admin“. Das Start-Passwort steht im App-Protokoll (Knopf „Protokoll“). Ändere es gleich nach der ersten Anmeldung.
+  - Du siehst den gemeinsamen Medienordner mit den Ordnern Filme, Serien, Musik und Hörbücher.
+  - Der Medienordner liegt nicht im Backup. Sichere wichtige Dateien zusätzlich.

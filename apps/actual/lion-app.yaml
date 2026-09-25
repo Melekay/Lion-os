@@ -1,0 +1,14 @@
+id: actual
+name: Actual Budget
+beschreibung: Haushaltsbuch nach dem Umschlag-Prinzip. Jeder Euro bekommt eine Aufgabe – synchron auf allen Geräten.
+version: "26.9.0"
+kategorie: haushalt
+sicherheitsstufe: sensibel
+web:
+  dienst: app
+  port: 5006
+ressourcen:
+  ram_min_mb: 256
+hinweise:
+  - Beim ersten Öffnen legst du ein Server-Passwort fest.
+  - Du kannst jede Budget-Datei zusätzlich mit einem eigenen Passwort verschlüsseln.

@@ -21,6 +21,7 @@ const apps = new AppVerwaltung({
   caddy,
   zustandsOrdner: konfig.appsZustand,
   datenOrdner: konfig.appsDaten,
+  medienOrdner: konfig.medien,
 });
 const backup = new BackupVerwaltung({
   db,

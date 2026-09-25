@@ -1,23 +1,26 @@
 "use client";
 
-import { ExternalLink, FolderOpen, Play, Plus, ShieldAlert, Square, Trash2 } from "lucide-react";
+import { ExternalLink, Film, FolderOpen, Play, Plus, ScrollText, ShieldAlert, Square, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { lion } from "@/lib/api";
-import { aktionen, besteAdresse, kategorieText, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
+import { aktionen, besteAdresse, kategorieText, medienText, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
 import type { AppAnsicht } from "@/lib/typen";
 import { AppSymbol } from "./AppSymbol";
 import { EntfernenDialog } from "./EntfernenDialog";
+import { ProtokollDialog } from "./ProtokollDialog";
 import { Hinweis, Karte, Knopf, StatusPille } from "./ui";
 
 export function AppKarte({ app, hostname, onGeaendert }: { app: AppAnsicht; hostname: string; onGeaendert: () => void }) {
   const [sendet, setSendet] = useState<string | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [dialog, setDialog] = useState(false);
+  const [protokoll, setProtokoll] = useState(false);
 
   const status = statusAnzeige(app);
   const knoepfe = aktionen(app);
   const stufe = sicherheitsHinweis(app.sicherheitsstufe);
   const adresse = app.installiert ? besteAdresse(app.installiert.adressen, hostname) : null;
+  const medien = medienText(app.medien);
 
   async function ausfuehren(name: string, aufruf: () => Promise<unknown>) {
     setSendet(name);
@@ -82,6 +85,13 @@ export function AppKarte({ app, hostname, onGeaendert }: { app: AppAnsicht; host
         </details>
       )}
 
+      {medien && (
+        <p className="flex items-center gap-2 text-xs text-gedaempft">
+          <Film className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{medien}</span>
+        </p>
+      )}
+
       {app.installiert && (
         <p className="flex items-center gap-2 text-xs text-gedaempft">
           <FolderOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -118,6 +128,11 @@ export function AppKarte({ app, hostname, onGeaendert }: { app: AppAnsicht; host
               <Square className="h-4 w-4" aria-hidden="true" /> Stoppen
             </Knopf>
           )}
+          {knoepfe.includes("protokoll") && (
+            <Knopf art="rahmen" onClick={() => setProtokoll(true)}>
+              <ScrollText className="h-4 w-4" aria-hidden="true" /> Protokoll
+            </Knopf>
+          )}
           {knoepfe.includes("entfernen") && (
             <Knopf art="leise" className="ml-auto" onClick={() => setDialog(true)}>
               <Trash2 className="h-4 w-4" aria-hidden="true" /> Entfernen
@@ -126,6 +141,7 @@ export function AppKarte({ app, hostname, onGeaendert }: { app: AppAnsicht; host
         </div>
       )}
 
+      {app.installiert && <ProtokollDialog app={app} offen={protokoll} onSchliessen={() => setProtokoll(false)} />}
       {app.installiert && (
         <EntfernenDialog
           app={app}

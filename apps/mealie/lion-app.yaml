@@ -1,0 +1,14 @@
+id: mealie
+name: Mealie
+beschreibung: Rezepte sammeln, Wochenpläne erstellen und Einkaufslisten teilen. Rezepte übernimmst du per Link von fast jeder Website.
+version: "3.28.0"
+kategorie: haushalt
+sicherheitsstufe: normal
+web:
+  dienst: app
+  port: 9000
+ressourcen:
+  ram_min_mb: 512
+hinweise:
+  - "Erste Anmeldung: changeme@example.com mit dem Passwort MyPassword. Ändere beides sofort."
+  - Neue Konten legst du als Admin an. Die freie Registrierung ist ausgeschaltet.

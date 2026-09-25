@@ -1,0 +1,18 @@
+id: ollama
+name: KI-Chat (Ollama)
+beschreibung: Dein eigener KI-Assistent wie ChatGPT – mit Open WebUI und lokalen Sprachmodellen. Deine Fragen verlassen das Haus nicht.
+version: "0.11.4"
+kategorie: ki
+sicherheitsstufe: sensibel
+web:
+  dienst: webui
+  port: 8080
+geheimnisse:
+  - WEBUI_SECRET_KEY
+ressourcen:
+  ram_min_mb: 8192
+hinweise:
+  - Beim ersten Öffnen legst du das Admin-Konto an. Alle weiteren Konten musst du freigeben.
+  - Modelle lädst du in Open WebUI unter Einstellungen → Modelle. Für den Anfang passen kleine Modelle wie „llama3.2:3b“ oder „qwen3:4b“.
+  - Ohne Grafikkarte antworten Modelle langsam. Plane pro Milliarde Parameter etwa 1 GB Arbeitsspeicher ein.
+  - Die Modelle liegen nicht im Backup. Du kannst sie jederzeit neu herunterladen.

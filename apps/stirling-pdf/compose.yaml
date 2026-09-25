@@ -1,0 +1,13 @@
+services:
+  app:
+    image: stirlingtools/stirling-pdf:2.14.3
+    restart: unless-stopped
+    environment:
+      SECURITY_ENABLELOGIN: "false"
+      SYSTEM_DEFAULTLOCALE: de-DE
+    ports:
+      - "127.0.0.1:${LION_APP_PORT}:8080"
+    volumes:
+      - ${LION_APP_DATA}/configs:/configs
+    security_opt:
+      - no-new-privileges:true

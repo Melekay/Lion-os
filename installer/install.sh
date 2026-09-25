@@ -335,6 +335,21 @@ lege_ordner_an() {
   ok "Ordnerstruktur angelegt."
 }
 
+# Gemeinsamer Medienordner für FileBrowser (schreibt) und Jellyfin, Navidrome, Audiobookshelf (lesen nur).
+# Er gehört UID 1000 – mit dieser Kennung läuft FileBrowser im Container. Vorhandene Ordner bleiben unverändert.
+MEDIEN_BESITZER="${MEDIEN_BESITZER:-1000:1000}"
+MEDIEN_UNTERORDNER=(Filme Serien Musik Hörbücher)
+
+lege_medienordner_an() {
+  local basis ordner
+  basis="$(pfad_srv)/medien"
+  for ordner in "$basis" "${MEDIEN_UNTERORDNER[@]/#/$basis/}"; do
+    [[ -d "$ordner" ]] && continue
+    ausfuehren install -d -m 0755 -o "${MEDIEN_BESITZER%%:*}" -g "${MEDIEN_BESITZER##*:}" "$ordner"
+  done
+  ok "Medienordner bereit ($basis)."
+}
+
 # Zufälliges Geheimnis (64 Hex-Zeichen), ohne externe Abhängigkeiten.
 erzeuge_geheimnis() {
   head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'
@@ -700,6 +715,7 @@ main() {
   installiere_node
   lege_benutzer_an
   lege_ordner_an
+  lege_medienordner_an
   schreibe_konfiguration
   schreibe_stack
   kopiere_katalog

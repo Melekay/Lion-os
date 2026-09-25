@@ -1,0 +1,15 @@
+services:
+  app:
+    image: ghcr.io/mealie-recipes/mealie:v3.28.0
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Berlin
+      ALLOW_SIGNUP: "false"
+      DEFAULT_GROUP: Zuhause
+      DEFAULT_HOUSEHOLD: Zuhause
+    ports:
+      - "127.0.0.1:${LION_APP_PORT}:9000"
+    volumes:
+      - ${LION_APP_DATA}/data:/app/data
+    security_opt:
+      - no-new-privileges:true

@@ -1,0 +1,15 @@
+id: navidrome
+name: Navidrome
+beschreibung: Deine Musiksammlung als eigener Streaming-Dienst – im Browser und mit vielen Handy-Apps (Subsonic).
+version: "0.64.2"
+kategorie: medien
+sicherheitsstufe: normal
+medien: lesen
+web:
+  dienst: app
+  port: 4533
+ressourcen:
+  ram_min_mb: 256
+hinweise:
+  - Beim ersten Öffnen legst du das Admin-Konto an.
+  - Musik legst du mit „Dateien“ (FileBrowser) in den Ordner „Musik“. Navidrome sucht jede Stunde nach neuen Titeln.

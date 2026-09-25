@@ -1,0 +1,18 @@
+id: immich
+name: Immich
+beschreibung: Deine eigene Foto- und Videosammlung – wie Google Fotos, nur bei dir zu Hause. Mit Handy-App und Gesichtserkennung.
+version: "3.2.2"
+kategorie: fotos
+sicherheitsstufe: sensibel
+web:
+  dienst: immich-server
+  port: 2283
+geheimnisse:
+  - DB_PASSWORD
+ressourcen:
+  ram_min_mb: 4096
+hinweise:
+  - Beim ersten Öffnen legst du das Admin-Konto an.
+  - In der Immich-Handy-App trägst du die Adresse von „Öffnen“ ein. Unterwegs klappt das nur über WireGuard.
+  - Die Gesichts- und Objekterkennung braucht viel Arbeitsspeicher. Die ersten Analysen dauern auf kleinen Geräten Stunden.
+  - Die Suchmodelle liegen nicht im Backup. Immich lädt sie bei Bedarf neu herunter.

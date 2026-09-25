@@ -22,10 +22,26 @@ export const ManifestSchema = z.object({
   geheimnisse: z.array(z.string().regex(GEHEIMNIS)).default([]),
   ressourcen: z.object({ ram_min_mb: z.number().int().min(0) }).default({ ram_min_mb: 0 }),
   hinweise: z.array(z.string().max(300)).default([]),
+  /** Zugriff auf den gemeinsamen Medienordner (${LION_MEDIEN}). */
+  medien: z.enum(["keine", "lesen", "schreiben"]).default("keine"),
 });
 
 export type Manifest = z.infer<typeof ManifestSchema>;
 export type Vorlage = { manifest: Manifest; compose: string; verzeichnis: string };
+
+/** Erlaubte Host-Pfade: Unterordner der App-Daten oder des Medienordners (Buchstaben inkl. Umlaute, Ziffern, . _ -). */
+const APP_DATEN_PFAD = /^\$\{LION_APP_DATA\}(\/[\p{L}\p{N}._-]+)*$/u;
+const MEDIEN_PFAD = /^\$\{LION_MEDIEN\}(\/[\p{L}\p{N}._-]+)*$/u;
+
+/** Unterordner von ${LION_APP_DATA}, die eine Compose-Datei einbindet (z. B. „db“, „config/cache“). */
+export function appDatenOrdner(composeText: string): string[] {
+  const ordner = new Set<string>();
+  for (const t of composeText.matchAll(/\$\{LION_APP_DATA\}\/([\p{L}\p{N}._\/-]+)/gu)) {
+    const pfad = t[1]!.replace(/\/+$/, "");
+    if (pfad && !pfad.split("/").some((teil) => teil === "" || teil === "." || teil === "..")) ordner.add(pfad);
+  }
+  return [...ordner].sort();
+}
 
 const VERBOTENE_SCHLUESSEL = ["privileged", "devices", "cap_add", "pid", "ipc", "userns_mode", "cgroup_parent"] as const;
 
@@ -75,22 +91,31 @@ export function pruefeCompose(composeText: string, manifest: Manifest): string[]
 
     const volumes = Array.isArray(dienst.volumes) ? dienst.volumes : [];
     for (const v of volumes) {
-      const quelle = typeof v === "string" ? v.split(":")[0] : (v as { source?: string; type?: string })?.source;
+      const teile = typeof v === "string" ? v.split(":") : [];
+      const quelle = typeof v === "string" ? teile[0] : (v as { source?: string; type?: string })?.source;
       const typ = typeof v === "string" ? undefined : (v as { type?: string })?.type;
       if (typeof quelle !== "string") {
         fehler.push(`${wo}: Ungültiger Volume-Eintrag.`);
         continue;
       }
-      const istPfad = quelle.startsWith("/") || quelle.startsWith(".") || quelle.startsWith("~") || quelle.startsWith("$") || typ === "bind";
-      if (istPfad && !/^\$\{LION_APP_DATA\}(\/[A-Za-z0-9._-]+)*$/.test(quelle)) {
-        fehler.push(`${wo}: Host-Pfad „${quelle}“ nicht erlaubt – nur \${LION_APP_DATA}/…`);
-      }
       if (quelle.includes("..")) fehler.push(`${wo}: „..“ in Pfaden ist verboten.`);
+      const istPfad = quelle.startsWith("/") || quelle.startsWith(".") || quelle.startsWith("~") || quelle.startsWith("$") || typ === "bind";
+      if (!istPfad || APP_DATEN_PFAD.test(quelle)) continue;
+      if (MEDIEN_PFAD.test(quelle)) {
+        if (manifest.medien === "keine") {
+          fehler.push(`${wo}: \${LION_MEDIEN} braucht „medien: lesen“ oder „medien: schreiben“ im Manifest.`);
+        } else if (manifest.medien === "lesen") {
+          const nurLesen = typeof v === "string" ? (teile[2] ?? "").split(",").includes("ro") : (v as { read_only?: unknown }).read_only === true;
+          if (!nurLesen) fehler.push(`${wo}: Mit „medien: lesen“ muss der Medienordner schreibgeschützt (:ro) eingebunden werden.`);
+        }
+        continue;
+      }
+      fehler.push(`${wo}: Host-Pfad „${quelle}“ nicht erlaubt – nur \${LION_APP_DATA}/… oder \${LION_MEDIEN}/…`);
     }
   }
 
   // Nur bekannte Variablen verwenden.
-  const erlaubt = new Set(["LION_APP_PORT", "LION_APP_DATA", ...manifest.geheimnisse]);
+  const erlaubt = new Set(["LION_APP_PORT", "LION_APP_DATA", ...(manifest.medien === "keine" ? [] : ["LION_MEDIEN"]), ...manifest.geheimnisse]);
   for (const treffer of composeText.matchAll(/\$\{([A-Za-z_][A-Za-z0-9_]*)/g)) {
     if (!erlaubt.has(treffer[1]!)) fehler.push(`Unbekannte Variable \${${treffer[1]}} – als Geheimnis im Manifest eintragen.`);
   }

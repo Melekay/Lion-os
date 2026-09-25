@@ -47,7 +47,33 @@ export class Attrappe {
       hinweise: [],
       installiert: null,
     },
+    {
+      id: "filebrowser",
+      name: "Dateien",
+      beschreibung: "Dateimanager für den Medienordner.",
+      kategorie: "dateien",
+      version: "2.63.23",
+      sicherheitsstufe: "normal",
+      medien: "schreiben",
+      hinweise: [],
+      installiert: null,
+    },
+    {
+      id: "jellyfin",
+      name: "Jellyfin",
+      beschreibung: "Filme und Serien streamen.",
+      kategorie: "medien",
+      version: "10.11.11",
+      sicherheitsstufe: "normal",
+      medien: "lesen",
+      hinweise: [],
+      installiert: null,
+    },
   ];
+
+  appProtokolle: Record<string, string[]> = {
+    filebrowser: ["app-1  | 2026/09/25 10:00:00 User 'admin' initialized with randomly generated password: Xy7-geheim"],
+  };
 
   protokoll: AuditEintrag[] = [
     { id: 2, zeit: "2026-09-25T10:00:00.000Z", benutzer: "admin", aktion: "anmeldung", ziel: null, ergebnis: "erfolg", details: "ip=192.168.1.5" },
@@ -201,6 +227,13 @@ export class Attrappe {
     if (pfad === "/api/apps") {
       this.weiterzaehlen();
       return this.json(route, 200, { apps: this.apps });
+    }
+
+    const protokoll = pfad.match(/^\/api\/apps\/([^/]+)\/protokoll$/);
+    if (protokoll && methode === "GET") {
+      const a = this.app(decodeURIComponent(protokoll[1]!));
+      if (!a.installiert) return this.json(route, 404, { fehler: "Diese App ist nicht installiert." });
+      return this.json(route, 200, { zeilen: this.appProtokolle[a.id] ?? [] });
     }
 
     const aktion = pfad.match(/^\/api\/apps\/([^/]+)\/(installieren|starten|stoppen|entfernen)$/);

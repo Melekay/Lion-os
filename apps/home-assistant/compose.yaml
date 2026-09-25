@@ -1,0 +1,37 @@
+services:
+  app:
+    image: ghcr.io/home-assistant/home-assistant:2026.9.3
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Berlin
+    # Legt beim ersten Start eine Grundkonfiguration an, die dem Lion-Proxy vertraut.
+    # Danach startet das normale Home Assistant (/init). Eine vorhandene Konfiguration bleibt unverändert.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ ! -f /config/configuration.yaml ]; then
+          cat > /config/configuration.yaml <<'LION'
+        default_config:
+
+        http:
+          use_x_forwarded_for: true
+          trusted_proxies:
+            - 127.0.0.1
+            - 172.16.0.0/12
+
+        automation: !include automations.yaml
+        script: !include scripts.yaml
+        scene: !include scenes.yaml
+        LION
+        fi
+        for datei in automations.yaml scripts.yaml scenes.yaml; do
+          [ -f "/config/$$datei" ] || touch "/config/$$datei"
+        done
+        exec /init
+    ports:
+      - "127.0.0.1:${LION_APP_PORT}:8123"
+    volumes:
+      - ${LION_APP_DATA}/config:/config
+    security_opt:
+      - no-new-privileges:true

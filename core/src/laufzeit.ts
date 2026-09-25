@@ -13,6 +13,8 @@ export interface Laufzeit {
   stoppen(projekt: string, verzeichnis: string): Promise<void>;
   entfernen(projekt: string, verzeichnis: string): Promise<void>;
   status(projekt: string, verzeichnis: string): Promise<AppStatus>;
+  /** Letzte Protokollzeilen aller Container der App (Text). */
+  protokoll(projekt: string, verzeichnis: string): Promise<string>;
 }
 
 const ausfuehren = promisify(execFile);
@@ -42,6 +44,9 @@ export class DockerComposeLaufzeit implements Laufzeit {
   }
   async entfernen(p: string, v: string) {
     await this.compose(p, v, "down", "--remove-orphans");
+  }
+  async protokoll(p: string, v: string): Promise<string> {
+    return this.compose(p, v, "logs", "--no-color", "--timestamps", "--tail", "300");
   }
   async status(p: string, v: string): Promise<AppStatus> {
     try {

@@ -1,4 +1,29 @@
-import { Activity, ArchiveRestore, Box, Cloud, Film, Home, KeyRound, LayoutGrid, type LucideIcon, ScrollText, Settings, Shield } from "lucide-react";
+import {
+  Activity,
+  ArchiveRestore,
+  Bot,
+  Box,
+  ChefHat,
+  Clapperboard,
+  Cloud,
+  FileStack,
+  Film,
+  FolderOpen,
+  Headphones,
+  Home,
+  House,
+  Images,
+  KeyRound,
+  LayoutGrid,
+  type LucideIcon,
+  Music,
+  ScanText,
+  ScrollText,
+  Settings,
+  Shield,
+  Sparkles,
+  Wallet,
+} from "lucide-react";
 
 /**
  * Eigene App-Symbole: Farbverlauf + Piktogramm. Bewusst keine fremden Markenlogos –
@@ -10,6 +35,17 @@ const NACH_ID: Record<string, Symbol> = {
   "uptime-kuma": { icon: Activity, verlauf: "from-emerald-400 to-teal-600" },
   vaultwarden: { icon: KeyRound, verlauf: "from-indigo-400 to-blue-700" },
   nextcloud: { icon: Cloud, verlauf: "from-sky-400 to-blue-600" },
+  immich: { icon: Images, verlauf: "from-fuchsia-400 to-pink-600" },
+  "paperless-ngx": { icon: ScanText, verlauf: "from-lime-400 to-green-700" },
+  jellyfin: { icon: Clapperboard, verlauf: "from-purple-400 to-indigo-700" },
+  filebrowser: { icon: FolderOpen, verlauf: "from-cyan-400 to-sky-700" },
+  navidrome: { icon: Music, verlauf: "from-rose-400 to-red-600" },
+  audiobookshelf: { icon: Headphones, verlauf: "from-amber-400 to-orange-700" },
+  mealie: { icon: ChefHat, verlauf: "from-orange-300 to-rose-600" },
+  actual: { icon: Wallet, verlauf: "from-teal-300 to-emerald-700" },
+  "stirling-pdf": { icon: FileStack, verlauf: "from-red-400 to-rose-700" },
+  ollama: { icon: Bot, verlauf: "from-violet-300 to-fuchsia-700" },
+  "home-assistant": { icon: House, verlauf: "from-sky-300 to-cyan-700" },
   "app-store": { icon: LayoutGrid, verlauf: "from-gold-hell to-gold-dunkel" },
   protokoll: { icon: ScrollText, verlauf: "from-stone-300 to-stone-500" },
   einstellungen: { icon: Settings, verlauf: "from-slate-400 to-slate-600" },
@@ -22,6 +58,10 @@ const NACH_KATEGORIE: Record<string, Symbol> = {
   dateien: { icon: Cloud, verlauf: "from-sky-400 to-blue-600" },
   medien: { icon: Film, verlauf: "from-rose-400 to-red-600" },
   smarthome: { icon: Home, verlauf: "from-amber-300 to-orange-600" },
+  fotos: { icon: Images, verlauf: "from-fuchsia-400 to-pink-600" },
+  dokumente: { icon: ScanText, verlauf: "from-lime-400 to-green-700" },
+  haushalt: { icon: Wallet, verlauf: "from-teal-300 to-emerald-700" },
+  ki: { icon: Sparkles, verlauf: "from-violet-300 to-fuchsia-700" },
 };
 
 export function AppSymbol({ id, kategorie = "", groesse = "gross" }: { id: string; kategorie?: string; groesse?: "gross" | "klein" }) {

@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { protokolliere } from "./audit.js";
 import type { CaddyVerwaltung } from "./caddy.js";
 import type { Datenbank } from "./datenbank.js";
-import type { Vorlage } from "./katalog.js";
+import { appDatenOrdner, type Vorlage } from "./katalog.js";
 import type { AppStatus, Laufzeit } from "./laufzeit.js";
 
 /**
@@ -29,6 +29,7 @@ export type AppAnsicht = {
   version: string;
   sicherheitsstufe: string;
   hinweise: string[];
+  medien: "keine" | "lesen" | "schreiben";
   installiert: null | {
     status: GespeicherterStatus | AppStatus;
     meldung: string | null;
@@ -53,6 +54,7 @@ export type AppVerwaltungOptionen = {
   caddy: CaddyVerwaltung;
   zustandsOrdner: string; // /var/lib/lion/apps
   datenOrdner: string; // /srv/lion/apps
+  medienOrdner?: string; // /srv/lion/medien
 };
 
 const projektName = (id: string) => `lion-app-${id}`;
@@ -138,10 +140,12 @@ export class AppVerwaltung {
       try {
         await mkdir(zustand, { recursive: true, mode: 0o750 });
         await mkdir(daten, { recursive: true, mode: 0o750 });
+        await legeDatenordnerAn(daten, appDatenOrdner(v.compose));
         await writeFile(join(zustand, "compose.yaml"), v.compose, { mode: 0o640 });
         const umgebung = [
           `LION_APP_PORT=${ports.lokal}`,
           `LION_APP_DATA=${daten}`,
+          ...(v.manifest.medien !== "keine" ? [`LION_MEDIEN=${this.o.medienOrdner ?? "/srv/lion/medien"}`] : []),
           ...v.manifest.geheimnisse.map((g) => `${g}=${erzeugeGeheimnis()}`),
         ].join("\n");
         await writeFile(join(zustand, ".env"), `${umgebung}\n`, { mode: 0o600 });
@@ -211,6 +215,14 @@ export class AppVerwaltung {
     });
   }
 
+  /** Die letzten Zeilen aus dem Protokoll der App-Container (z. B. für ein Start-Passwort). */
+  async protokoll(id: string): Promise<{ zeilen: string[] }> {
+    this.vorlage(id);
+    if (!this.zeile(id)) throw new AppFehler("Diese App ist nicht installiert.", 404);
+    const text = await this.o.laufzeit.protokoll(projektName(id), this.verzeichnisse(id).zustand);
+    return { zeilen: bereinigeProtokoll(text) };
+  }
+
   async liste(): Promise<AppAnsicht[]> {
     const adressen = await this.o.caddy.adressen();
     return Promise.all(
@@ -239,6 +251,7 @@ export class AppVerwaltung {
           version: m.version,
           sicherheitsstufe: m.sicherheitsstufe,
           hinweise: m.hinweise,
+          medien: m.medien,
           installiert,
         };
       }),
@@ -250,4 +263,36 @@ export class AppVerwaltung {
 function kurz(e: unknown): string {
   const text = e instanceof Error ? e.message : String(e);
   return text.length > 500 ? `${text.slice(0, 500)} …` : text;
+}
+
+/**
+ * Legt die eingebundenen Datenordner vorab an. Neue Ordner werden für alle beschreibbar (0777),
+ * damit auch Images mit eigenem Benutzer (z. B. UID 1000) hineinschreiben können. Privat bleiben
+ * sie trotzdem: Der App-Ordner darüber gehört lion und hat 0750. Vorhandene Ordner bleiben
+ * unverändert – manche Apps (z. B. PostgreSQL) setzen dort bewusst strengere Rechte.
+ */
+export async function legeDatenordnerAn(daten: string, ordner: string[]): Promise<void> {
+  for (const relativ of ordner) {
+    let aktuell = daten;
+    for (const teil of relativ.split("/")) {
+      aktuell = join(aktuell, teil);
+      const vorhanden = await stat(aktuell).then(() => true, () => false);
+      if (vorhanden) continue;
+      await mkdir(aktuell);
+      await chmod(aktuell, 0o777);
+    }
+  }
+}
+
+const MAX_ZEILEN = 300;
+
+/** Entfernt Farbcodes und Steuerzeichen und begrenzt die Länge. */
+export function bereinigeProtokoll(text: string): string[] {
+  return text
+    .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")
+    .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "")
+    .split("\n")
+    .map((z) => (z.length > 2000 ? `${z.slice(0, 2000)} …` : z))
+    .filter((z) => z.trim() !== "")
+    .slice(-MAX_ZEILEN);
 }

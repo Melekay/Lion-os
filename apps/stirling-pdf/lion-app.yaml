@@ -1,0 +1,14 @@
+id: stirling-pdf
+name: Stirling-PDF
+beschreibung: Über 50 PDF-Werkzeuge im Browser – zusammenfügen, teilen, drehen, komprimieren, Texterkennung. Deine Dateien verlassen das Haus nicht.
+version: "2.14.3"
+kategorie: dokumente
+sicherheitsstufe: normal
+web:
+  dienst: app
+  port: 8080
+ressourcen:
+  ram_min_mb: 1024
+hinweise:
+  - Stirling-PDF hat keine Anmeldung. Jeder in deinem Heimnetz kann es benutzen.
+  - Hochgeladene Dateien werden nur kurz verarbeitet und nicht gespeichert.

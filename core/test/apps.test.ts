@@ -1,9 +1,9 @@
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { AppFehler, AppVerwaltung } from "../src/apps.js";
+import { AppFehler, AppVerwaltung, bereinigeProtokoll, legeDatenordnerAn } from "../src/apps.js";
 import { letzteEintraege } from "../src/audit.js";
 import type { CaddyVerwaltung } from "../src/caddy.js";
 import { oeffneDatenbank } from "../src/datenbank.js";
@@ -25,6 +25,8 @@ class AttrappenLaufzeit implements Laufzeit {
   async stoppen(p: string) { this.tu("stoppen", p); this.zustand.set(p, "gestoppt"); }
   async entfernen(p: string) { this.tu("entfernen", p); this.zustand.delete(p); }
   async status(p: string) { return this.zustand.get(p) ?? "gestoppt"; }
+  protokollText = "";
+  async protokoll(p: string) { this.tu("protokoll", p); return this.protokollText; }
 }
 
 class AttrappenCaddy implements CaddyVerwaltung {
@@ -40,7 +42,15 @@ async function aufbau() {
   const { vorlagen } = await ladeKatalog(KATALOG);
   const laufzeit = new AttrappenLaufzeit();
   const caddy = new AttrappenCaddy();
-  const apps = new AppVerwaltung({ db, vorlagen, laufzeit, caddy, zustandsOrdner: join(basis, "zustand"), datenOrdner: join(basis, "daten") });
+  const apps = new AppVerwaltung({
+    db,
+    vorlagen,
+    laufzeit,
+    caddy,
+    zustandsOrdner: join(basis, "zustand"),
+    datenOrdner: join(basis, "daten"),
+    medienOrdner: join(basis, "medien"),
+  });
   return { basis, db, laufzeit, caddy, apps };
 }
 
@@ -100,6 +110,70 @@ describe("Installieren", () => {
     expect(app.installiert?.meldung).toMatch(/Docker-Fehler/);
     expect(caddy.eintraege.size).toBe(0);
     expect(letzteEintraege(db)[0]).toMatchObject({ aktion: "app.installieren", ergebnis: "fehler" });
+  });
+});
+
+describe("Datenordner und Medienordner", () => {
+  it("legt alle eingebundenen Datenordner vorab an und macht neue beschreibbar", async () => {
+    const { basis, apps } = await aufbau();
+    apps.installieren("paperless-ngx", "admin");
+    await apps.warteAuf("paperless-ngx");
+    for (const ordner of ["daten", "dokumente", "export", "eingang"]) {
+      const s = await stat(join(basis, "daten/paperless-ngx", ordner));
+      expect(s.isDirectory(), ordner).toBe(true);
+      expect(s.mode & 0o777, ordner).toBe(0o777);
+    }
+    // Der App-Ordner selbst bleibt für andere Benutzer gesperrt.
+    expect((await stat(join(basis, "daten/paperless-ngx"))).mode & 0o007).toBe(0);
+  });
+
+  it("lässt die Rechte vorhandener Ordner unverändert (z. B. Datenbank nach Neuinstallation)", async () => {
+    const ordner = await mkdtemp(join(tmpdir(), "lion-ordner-"));
+    await mkdir(join(ordner, "datenbank"), { mode: 0o700 });
+    await chmod(join(ordner, "datenbank"), 0o700);
+    await legeDatenordnerAn(ordner, ["datenbank", "bibliothek/fotos"]);
+    expect((await stat(join(ordner, "datenbank"))).mode & 0o777).toBe(0o700);
+    expect((await stat(join(ordner, "bibliothek"))).mode & 0o777).toBe(0o777);
+    expect((await stat(join(ordner, "bibliothek/fotos"))).mode & 0o777).toBe(0o777);
+  });
+
+  it("gibt nur Apps mit Medienzugriff den Medienordner", async () => {
+    const { basis, apps } = await aufbau();
+    apps.installieren("jellyfin", "admin");
+    await apps.warteAuf("jellyfin");
+    apps.installieren("mealie", "admin");
+    await apps.warteAuf("mealie");
+    expect(await readFile(join(basis, "zustand/jellyfin/.env"), "utf8")).toContain(`LION_MEDIEN=${join(basis, "medien")}`);
+    expect(await readFile(join(basis, "zustand/mealie/.env"), "utf8")).not.toContain("LION_MEDIEN");
+    const liste = await apps.liste();
+    expect(liste.find((a) => a.id === "jellyfin")?.medien).toBe("lesen");
+    expect(liste.find((a) => a.id === "filebrowser")?.medien).toBe("schreiben");
+    expect(liste.find((a) => a.id === "mealie")?.medien).toBe("keine");
+  });
+});
+
+describe("App-Protokoll", () => {
+  it("liefert bereinigte letzte Zeilen einer installierten App", async () => {
+    const { apps, laufzeit } = await aufbau();
+    apps.installieren("filebrowser", "admin");
+    await apps.warteAuf("filebrowser");
+    laufzeit.protokollText = "app-1  | \x1b[32mUser 'admin' initialized with randomly generated password: abc123\x1b[0m\n\napp-1  | läuft\x07\n";
+    const { zeilen } = await apps.protokoll("filebrowser");
+    expect(zeilen).toEqual(["app-1  | User 'admin' initialized with randomly generated password: abc123", "app-1  | läuft"]);
+    expect(laufzeit.aufrufe).toContain("protokoll:lion-app-filebrowser");
+  });
+
+  it("lehnt nicht installierte und unbekannte Apps ab", async () => {
+    const { apps } = await aufbau();
+    await expect(apps.protokoll("filebrowser")).rejects.toThrow(/nicht installiert/);
+    await expect(apps.protokoll("gibtsnicht")).rejects.toThrow(/Unbekannte App/);
+  });
+
+  it("begrenzt Anzahl und Länge der Zeilen", () => {
+    const text = Array.from({ length: 500 }, (_, i) => `zeile ${i}`).join("\n") + "\n" + "x".repeat(5000);
+    const zeilen = bereinigeProtokoll(text);
+    expect(zeilen).toHaveLength(300);
+    expect(zeilen.at(-1)!.length).toBeLessThan(2100);
   });
 });
 
