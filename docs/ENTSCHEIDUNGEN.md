@@ -14,8 +14,14 @@ Jede Architekturentscheidung wird hier mit Datum und Begründung festgehalten.
 | 8 | 25.09.2026 | Lizenzmodell **Open Core** | Offene Basis schafft Vertrauen, Plus-Funktionen finanzieren das Projekt | Komplett Open Source, komplett proprietär |
 | 9 | 25.09.2026 | Backup mit **restic** | Verschlüsselt, dedupliziert, viele Ziele (USB, NAS, S3) | borg, rsync |
 | 10 | 25.09.2026 | Phase 1 startet mit nur 3 App-Vorlagen | Uptime Kuma (einfach), Vaultwarden (sensibel), Nextcloud (komplex mit DB) prüfen das App-Format vollständig | 12 Apps sofort |
+| 11 | 25.09.2026 | SQLite über **`node:sqlite`** (in Node eingebaut) | Keine nativen Pakete, die auf dem Mini-PC kompiliert werden müssten; eine Datei, leicht zu sichern | better-sqlite3 (nativ), PostgreSQL (zu schwer für ein Heimgerät) |
+| 12 | 25.09.2026 | Sitzungen als Zufalls-Token, gespeichert als Hash in SQLite | Serverseitig widerrufbar (Abmelden, Sperren), kein Signaturschlüssel nötig | JWT (ohne Zusatzaufwand nicht widerrufbar) |
+| 13 | 25.09.2026 | CSRF-Schutz über `SameSite=Strict` + Pflicht-Header `X-Lion-Request` | Einfach, ohne Token-Verwaltung; Browser senden den Header nicht von allein an fremde Seiten | CSRF-Token pro Formular |
+| 14 | 25.09.2026 | lion-core lauscht nur auf 127.0.0.1, Caddy davor | API nicht direkt aus dem Netz erreichbar, HTTPS zentral in Caddy | lion-core direkt im Netz |
 
 ## Offen
 
 - Konkrete Lizenz für den offenen Kern (z. B. AGPLv3 oder Apache 2.0) – vor der ersten Veröffentlichung entscheiden.
 - Markenname nach Recherche bestätigen.
+- Auslieferung von lion-core: Docker-Container oder systemd-Dienst mit Node auf dem Host – Entscheidung bei der Installer-Integration.
+- `node:sqlite` meldet in Node 22 noch „experimental“ – beobachten; Fallback wäre better-sqlite3.
