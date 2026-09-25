@@ -18,9 +18,10 @@ const apps = new AppVerwaltung({
   zustandsOrdner: konfig.appsZustand,
   datenOrdner: konfig.appsDaten,
 });
-const server = baueServer({ db, version: konfig.version, logger: true, apps });
+const server = baueServer({ db, version: konfig.version, logger: true, apps, einrichtungsCode: konfig.einrichtungsCode });
 for (const f of katalog.fehler) server.log.warn(`App-Vorlage abgelehnt: ${f}`);
 server.log.info(`${katalog.vorlagen.length} App-Vorlagen geladen.`);
+if (!konfig.einrichtungsCode) server.log.warn("Kein LION_SETUP_CODE gesetzt – jeder im Netz kann die Einrichtung durchführen.");
 
 setInterval(() => raeumeAbgelaufeneAuf(db), 60 * 60 * 1000).unref();
 

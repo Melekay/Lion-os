@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import cookie from "@fastify/cookie";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -25,6 +26,8 @@ export type ServerOptionen = {
   sichereCookies?: boolean;
   logger?: boolean;
   apps?: AppVerwaltung;
+  /** Wenn gesetzt, verlangt die Einrichtung diesen Code (der Installer schreibt ihn nach /etc/lion/lion.env). */
+  einrichtungsCode?: string;
 };
 
 declare module "fastify" {
@@ -40,6 +43,20 @@ const Zugangsdaten = z.object({
   name: z.string().trim().min(1).max(64),
   passwort: z.string().min(1).max(256),
 });
+
+const Einrichtung = Zugangsdaten.extend({ code: z.string().max(64).optional() });
+
+/** Groß-/Kleinschreibung, Leerzeichen und Bindestriche spielen beim Code keine Rolle. */
+function normalisiereCode(code: string): string {
+  return code.toUpperCase().replace(/[\s-]/g, "");
+}
+
+/** Vergleich in konstanter Zeit (über Hashes, damit auch die Länge nichts verrät). */
+function codeStimmt(eingabe: string | undefined, erwartet: string): boolean {
+  const a = createHash("sha256").update(normalisiereCode(eingabe ?? "")).digest();
+  const b = createHash("sha256").update(normalisiereCode(erwartet)).digest();
+  return timingSafeEqual(a, b);
+}
 
 export function baueServer(opt: ServerOptionen): FastifyInstance {
   const { db } = opt;
@@ -76,12 +93,27 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
   // ---- Öffentlich ---------------------------------------------------------
   app.get("/api/health", async () => ({ ok: true, version: opt.version }));
 
-  app.get("/api/setup/status", async () => ({ eingerichtet: eingerichtet() }));
+  app.get("/api/setup/status", async () => ({ eingerichtet: eingerichtet(), codeNoetig: Boolean(opt.einrichtungsCode) }));
 
   app.post("/api/setup", async (req, reply) => {
     if (eingerichtet()) return reply.code(409).send({ fehler: "Lion OS ist bereits eingerichtet." });
-    const daten = Zugangsdaten.safeParse(req.body);
+    const daten = Einrichtung.safeParse(req.body);
     if (!daten.success) return reply.code(400).send({ fehler: "Name und Passwort angeben." });
+
+    if (opt.einrichtungsCode) {
+      const schluessel = `einrichtung:${req.ip}`;
+      const gesperrt = sperre.gesperrtFuer(schluessel);
+      if (gesperrt > 0) {
+        reply.header("retry-after", Math.ceil(gesperrt / 1000));
+        return reply.code(429).send({ fehler: `Zu viele Fehlversuche. Bitte in ${Math.ceil(gesperrt / 60000)} Minuten erneut versuchen.` });
+      }
+      if (!codeStimmt(daten.data.code, opt.einrichtungsCode)) {
+        sperre.fehlversuch(schluessel);
+        protokolliere(db, { benutzer: daten.data.name, aktion: "einrichtung", ergebnis: "abgelehnt", details: `ip=${req.ip}` });
+        return reply.code(403).send({ fehler: "Einrichtungscode falsch. Du findest ihn am Ende der Installation." });
+      }
+      sperre.erfolg(schluessel);
+    }
     const regel = passwortRegelVerletzt(daten.data.passwort);
     if (regel) return reply.code(400).send({ fehler: regel });
 

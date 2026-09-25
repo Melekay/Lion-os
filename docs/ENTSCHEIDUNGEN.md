@@ -22,10 +22,15 @@ Jede Architekturentscheidung wird hier mit Datum und Begründung festgehalten.
 | 16 | 25.09.2026 | Caddy im **Host-Netzwerk** | Kann neue App-Ports öffnen, ohne neu erstellt zu werden, und erreicht Apps auf 127.0.0.1 | Port-Freigaben pro App (Caddy-Container müsste bei jeder App neu erstellt werden) |
 | 17 | 25.09.2026 | **Entfernen behält die Daten** | Schutz vor versehentlichem Datenverlust; Löschen der Daten bleibt eine bewusste, getrennte Handlung | Daten mitlöschen |
 | 18 | 25.09.2026 | App-Aktionen laufen im Hintergrund, eine Aktion pro App | Image-Downloads dauern Minuten; keine hängenden Anfragen, keine Doppel-Aktionen | Blockierende Anfragen |
+| 19 | 25.09.2026 | lion-core als **systemd-Dienst mit Node auf dem Host**, Benutzer `lion` + Gruppe `docker`, enge Sandbox | Kein Docker-Socket in einem Container (verbietet unser eigener Katalog-Check); systemd-Sandbox begrenzt Schreibrechte auf drei Ordner | Container mit eingebundenem Docker-Socket, Dienst als root |
+| 20 | 25.09.2026 | Node.js 24 aus dem **NodeSource-Repository** | Debian 13 liefert Node 20 (zu alt für `node:sqlite`); signiertes apt-Repository bekommt Sicherheitsupdates wie der Rest des Systems | Node-Tarball (keine automatischen Updates), Node 22 (Support endet April 2027) |
+| 21 | 25.09.2026 | **Einrichtungscode** für den ersten Admin | Sonst kann jeder im Heimnetz Lion OS vor dem Besitzer einrichten; für die Lion Box druckbar | Erster gewinnt (wie viele Router), Admin im Installer anlegen |
+| 22 | 25.09.2026 | lion-core wird auf dem Gerät gebaut, `npm ci --ignore-scripts` | Keine Paket-Skripte mit root-Rechten; Build-Artefakte folgen später mit Releases | Fertige Pakete (.deb) – sinnvoll ab dem ersten Release |
 
 ## Offen
 
 - Konkrete Lizenz für den offenen Kern (z. B. AGPLv3 oder Apache 2.0) – vor der ersten Veröffentlichung entscheiden.
 - Markenname nach Recherche bestätigen.
-- Auslieferung von lion-core: Docker-Container oder systemd-Dienst mit Node auf dem Host – Entscheidung bei der Installer-Integration.
+- Gruppe `docker` kommt einem Root-Zugang nahe. Später einen eng begrenzten `lion-helper` (feste Befehle) oder einen Docker-Socket-Proxy mit Allowlist prüfen.
+- NodeSource-Schlüssel mit dem strengeren apt von Debian 13 (sqv) auf echter Hardware prüfen – die CI läuft auf Ubuntu.
 - `node:sqlite` meldet in Node 22 noch „experimental“ – beobachten; Fallback wäre better-sqlite3.

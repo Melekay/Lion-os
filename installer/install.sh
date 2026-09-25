@@ -7,6 +7,7 @@
 #   - Docker Engine + Compose-Plugin (offizielles Docker-Repository)
 #   - Systembenutzer „lion“ und die Ordnerstruktur
 #   - Caddy als Reverse Proxy mit lokalem HTTPS (eigene Zertifizierungsstelle)
+#   - Node.js (NodeSource-Repository) und lion-core als systemd-Dienst „lion-core“
 #   - systemd-Dienst „lion“, der den Stack startet
 #
 # Das Skript ist idempotent: Mehrfaches Ausführen ändert nichts Bestehendes
@@ -19,10 +20,16 @@ set -euo pipefail
 LION_VERSION="0.1.0-dev"
 CADDY_IMAGE="caddy:2.10-alpine"
 DOCKER_REPO="https://download.docker.com/linux/debian"
+NODE_MAJOR=24
+NODE_MIN="22.13"
+NODE_REPO="https://deb.nodesource.com/node_${NODE_MAJOR}.x"
+CORE_PORT=8080
 
 # Für Tests überschreibbar; im echten Betrieb leer (= Wurzelverzeichnis).
 LION_ROOT="${LION_ROOT:-}"
 LION_OS_RELEASE="${LION_OS_RELEASE:-/etc/os-release}"
+# lion-core nutzt immer das Node.js aus dem Paketsystem (nicht eines aus PATH).
+LION_NODE="${LION_NODE:-/usr/bin/node}"
 
 DRY_RUN=0
 ASSUME_YES=0
@@ -36,7 +43,11 @@ pfad_var() { printf '%s/var/lib/lion' "$LION_ROOT"; }
 pfad_srv() { printf '%s/srv/lion' "$LION_ROOT"; }
 pfad_stack() { printf '%s/stack' "$(pfad_opt)"; }
 pfad_env() { printf '%s/lion.env' "$(pfad_etc)"; }
+pfad_core() { printf '%s/core' "$(pfad_opt)"; }
 pfad_unit() { printf '%s/etc/systemd/system/lion.service' "$LION_ROOT"; }
+pfad_core_unit() { printf '%s/etc/systemd/system/lion-core.service' "$LION_ROOT"; }
+# Wurzel des Repositorys, aus dem der Installer gestartet wurde.
+pfad_repo() { (cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd); }
 
 # ---------------------------------------------------------------------------
 # Ausgabe
@@ -179,7 +190,8 @@ pruefe_ressourcen() {
   fi
 }
 
-# Ports 80/443 müssen frei sein – außer Lion OS läuft bereits (erneute Installation).
+# Ports 80/443 (Caddy) und 8080 (lion-core, nur lokal) müssen frei sein –
+# außer Lion OS läuft bereits (erneute Installation).
 pruefe_ports() {
   [[ "$DRY_RUN" -eq 1 ]] && return 0
   if [[ -f "$(pfad_unit)" ]]; then
@@ -187,12 +199,12 @@ pruefe_ports() {
   fi
   command -v ss >/dev/null 2>&1 || return 0
   local port
-  for port in 80 443; do
+  for port in 80 443 "$CORE_PORT"; do
     if ss -Hltn "sport = :$port" | grep -q .; then
       fehler "Port $port ist bereits belegt. Bitte den Dienst beenden, der ihn nutzt, und erneut starten."
     fi
   done
-  ok "Ports 80 und 443 sind frei."
+  ok "Ports 80, 443 und ${CORE_PORT} sind frei."
 }
 
 bestaetigen() {
@@ -260,6 +272,49 @@ EOF
   ok "Docker installiert."
 }
 
+# Prüft, ob eine Node-Version (z. B. „v22.13.0“) mindestens NODE_MIN ist.
+node_passt() {
+  local v="${1#v}" haupt neben min_haupt min_neben
+  [[ "$v" =~ ^([0-9]+)\.([0-9]+)\. ]] || return 1
+  haupt="${BASH_REMATCH[1]}"; neben="${BASH_REMATCH[2]}"
+  min_haupt="${NODE_MIN%%.*}"; min_neben="${NODE_MIN#*.}"
+  ((haupt > min_haupt || (haupt == min_haupt && neben >= min_neben)))
+}
+
+installiere_node() {
+  local vorhanden=""
+  [[ -x "$LION_NODE" ]] && vorhanden="$("$LION_NODE" --version 2>/dev/null || true)"
+  if node_passt "$vorhanden"; then
+    ok "Node.js ${vorhanden} ist installiert."
+    return 0
+  fi
+  command -v apt-get >/dev/null 2>&1 || fehler "Node.js ≥ ${NODE_MIN} fehlt. Automatische Installation nur mit apt möglich."
+
+  # Debian 13 liefert Node 20 – zu alt für lion-core. Daher das NodeSource-Repository
+  # (signiert, Updates über apt wie beim Rest des Systems).
+  info "Installiere Node.js ${NODE_MAJOR} aus dem NodeSource-Repository …"
+  local arch
+  arch="$(architektur)"
+  ausfuehren install -m 0755 -d /etc/apt/keyrings
+  ausfuehren curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key -o /etc/apt/keyrings/nodesource.asc
+  ausfuehren chmod a+r /etc/apt/keyrings/nodesource.asc
+  schreibe_datei "${LION_ROOT}/etc/apt/sources.list.d/nodesource.sources" 0644 <<EOF
+Types: deb
+URIs: ${NODE_REPO}
+Suites: nodistro
+Components: main
+Architectures: ${arch}
+Signed-By: /etc/apt/keyrings/nodesource.asc
+EOF
+  ausfuehren apt-get update
+  ausfuehren apt-get install -y nodejs
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+    vorhanden="$("$LION_NODE" --version 2>/dev/null || true)"
+    node_passt "$vorhanden" || fehler "Node.js-Installation fehlgeschlagen (gefunden: ${vorhanden:-nichts})."
+  fi
+  ok "Node.js installiert."
+}
+
 lege_benutzer_an() {
   if id lion >/dev/null 2>&1; then
     ok "Systembenutzer „lion“ existiert bereits."
@@ -269,10 +324,13 @@ lege_benutzer_an() {
   ok "Systembenutzer „lion“ angelegt."
 }
 
+# lion-core läuft als Benutzer „lion“ und darf nur in seine eigenen Ordner schreiben.
 lege_ordner_an() {
-  ausfuehren install -d -m 0755 "$(pfad_opt)" "$(pfad_stack)" "$(pfad_stack)/www" "$(pfad_stack)/apps"
-  ausfuehren install -d -m 0750 "$(pfad_etc)" "$(pfad_var)"
-  ausfuehren install -d -m 0755 "$(pfad_srv)" "$(pfad_srv)/apps"
+  ausfuehren install -d -m 0755 "$(pfad_opt)" "$(pfad_stack)" "$(pfad_stack)/www" "$(pfad_srv)"
+  ausfuehren install -d -m 0755 -o lion -g lion "$(pfad_stack)/apps" "$(pfad_srv)/apps"
+  ausfuehren install -d -m 0750 -o lion -g lion "$(pfad_var)"
+  # /etc/lion: lion darf lesen (Adressliste), lion.env selbst bleibt root vorbehalten (600).
+  ausfuehren install -d -m 0750 -o root -g lion "$(pfad_etc)"
   ok "Ordnerstruktur angelegt."
 }
 
@@ -281,18 +339,41 @@ erzeuge_geheimnis() {
   head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'
 }
 
+# Einmaliger Code für die Ersteinrichtung, z. B. „K7QM-4XPA-9TRD“ (60 Bit, ohne verwechselbare Zeichen).
+erzeuge_einrichtungscode() {
+  local roh
+  roh="$(LC_ALL=C tr -dc 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' < <(head -c 1024 /dev/urandom))"
+  printf '%s-%s-%s' "${roh:0:4}" "${roh:4:4}" "${roh:8:4}"
+}
+
+# Liest den Einrichtungscode aus lion.env (leer, wenn keiner da ist).
+einrichtungscode() {
+  [[ -r "$(pfad_env)" ]] || return 0
+  sed -n 's/^LION_SETUP_CODE=//p' "$(pfad_env)" | head -n 1
+}
+
 # Schreibt lion.env nur, wenn es noch nicht existiert – vorhandene Secrets bleiben.
+# Ältere Installationen ohne Einrichtungscode bekommen ihn ergänzt.
 schreibe_konfiguration() {
   local datei
   datei="$(pfad_env)"
   if [[ -f "$datei" ]]; then
-    ok "Konfiguration vorhanden ($datei) – bleibt unverändert."
+    if grep -q '^LION_SETUP_CODE=' "$datei"; then
+      ok "Konfiguration vorhanden ($datei) – bleibt unverändert."
+    elif [[ "$DRY_RUN" -eq 1 ]]; then
+      printf '  [probelauf] ergänze Einrichtungscode in %s\n' "$datei"
+    else
+      printf 'LION_SETUP_CODE=%s\n' "$(erzeuge_einrichtungscode)" >>"$datei"
+      ok "Einrichtungscode ergänzt ($datei)."
+    fi
     return 0
   fi
   schreibe_datei "$datei" 0600 <<EOF
 # Lion OS – Konfiguration. Diese Datei enthält Geheimnisse: nicht weitergeben.
 LION_VERSION=${LION_VERSION}
 LION_SECRET=$(erzeuge_geheimnis)
+# Nur für die Ersteinrichtung nötig; danach ohne Wirkung.
+LION_SETUP_CODE=$(erzeuge_einrichtungscode)
 EOF
   ok "Konfiguration angelegt ($datei)."
 }
@@ -348,8 +429,14 @@ ${liste} {
 		X-Frame-Options DENY
 		Referrer-Policy no-referrer
 	}
-	root * /srv/www
-	file_server
+	# API von lion-core (nur auf 127.0.0.1 erreichbar; Caddy läuft im Host-Netz)
+	handle /api/* {
+		reverse_proxy 127.0.0.1:${CORE_PORT}
+	}
+	handle {
+		root * /srv/www
+		file_server
+	}
 }
 EOF
 }
@@ -422,7 +509,7 @@ schreibe_adressen() {
 # Kopiert den App-Katalog aus dem Repository nach /opt/lion/apps.
 kopiere_katalog() {
   local quelle
-  quelle="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/apps"
+  quelle="$(pfad_repo)/apps"
   if [[ ! -d "$quelle" ]]; then
     warnung "App-Katalog nicht gefunden ($quelle) – übersprungen."
     return 0
@@ -430,6 +517,25 @@ kopiere_katalog() {
   ausfuehren install -d -m 0755 "$(pfad_opt)/apps"
   ausfuehren cp -a "$quelle/." "$(pfad_opt)/apps/"
   ok "App-Katalog kopiert ($(pfad_opt)/apps)."
+}
+
+# Baut lion-core aus dem Repository nach /opt/lion/core (gehört root, lion darf nur lesen).
+# npm läuft ohne Paket-Skripte (--ignore-scripts): Bei der Installation wird kein Fremdcode ausgeführt.
+installiere_core() {
+  local quelle ziel npm
+  quelle="$(pfad_repo)/core"
+  ziel="$(pfad_core)"
+  npm="$(dirname "$LION_NODE")/npm"
+  [[ -f "$quelle/package-lock.json" ]] || fehler "lion-core nicht gefunden ($quelle)."
+  info "Baue lion-core …"
+  ausfuehren install -d -m 0755 "$ziel"
+  ausfuehren rm -rf "$ziel/src" "$ziel/dist"
+  ausfuehren cp -a "$quelle/src" "$quelle/package.json" "$quelle/package-lock.json" \
+    "$quelle/tsconfig.json" "$quelle/tsconfig.build.json" "$ziel/"
+  ausfuehren env -C "$ziel" "$npm" ci --ignore-scripts --no-audit --no-fund --loglevel=error
+  ausfuehren env -C "$ziel" "$npm" run --silent build
+  ausfuehren env -C "$ziel" "$npm" prune --omit=dev --ignore-scripts --no-audit --no-fund --loglevel=error
+  ok "lion-core gebaut ($ziel)."
 }
 
 schreibe_stack() {
@@ -463,25 +569,79 @@ WantedBy=multi-user.target
 EOF
 }
 
+# lion-core läuft als Benutzer „lion“ in einer engen systemd-Sandbox. Die Gruppe „docker“
+# braucht es, um Apps zu verwalten – sie kommt einem Root-Zugang nahe. Deshalb darf lion-core
+# sonst fast nichts: nur in seine Ordner schreiben, keine neuen Rechte, keine Geräte.
+render_core_unit() {
+  cat <<EOF
+[Unit]
+Description=Lion OS – lion-core (API)
+Requires=docker.service
+Wants=lion.service
+After=docker.service lion.service network-online.target
+
+[Service]
+Type=simple
+User=lion
+Group=lion
+SupplementaryGroups=docker
+EnvironmentFile=/etc/lion/lion.env
+Environment=NODE_ENV=production
+Environment=LION_HOST=127.0.0.1
+Environment=LION_PORT=${CORE_PORT}
+Environment=DOCKER_CONFIG=/var/lib/lion/.docker
+WorkingDirectory=/opt/lion/core
+ExecStart=${LION_NODE} dist/index.js
+Restart=on-failure
+RestartSec=5
+
+# Sandbox
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ReadWritePaths=/var/lib/lion /srv/lion/apps /opt/lion/stack/apps
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
 richte_dienst_ein() {
   render_unit | schreibe_datei "$(pfad_unit)" 0644
+  render_core_unit | schreibe_datei "$(pfad_core_unit)" 0644
   ausfuehren systemctl daemon-reload
-  ausfuehren systemctl enable lion.service
+  ausfuehren systemctl enable lion.service lion-core.service
   ausfuehren systemctl restart lion.service
-  ok "Dienst „lion“ eingerichtet und gestartet."
+  ausfuehren systemctl restart lion-core.service
+  ok "Dienste „lion“ und „lion-core“ eingerichtet und gestartet."
 }
 
 warte_auf_start() {
   [[ "$DRY_RUN" -eq 1 ]] && return 0
   info "Warte, bis Lion OS antwortet …"
   for _ in $(seq 1 60); do
-    if curl -skf --max-time 2 https://localhost/ >/dev/null 2>&1; then
+    if curl -skf --max-time 2 https://localhost/api/health >/dev/null 2>&1; then
       ok "Lion OS antwortet."
       return 0
     fi
     sleep 1
   done
-  fehler "Lion OS antwortet nicht. Prüfe: sudo systemctl status lion && sudo docker compose -f /opt/lion/stack/compose.yaml logs"
+  fehler "Lion OS antwortet nicht. Prüfe: sudo systemctl status lion lion-core && sudo journalctl -u lion-core -n 50"
 }
 
 zusammenfassung() {
@@ -493,6 +653,12 @@ zusammenfassung() {
   printf 'Öffne im Browser (im Heimnetz):\n'
   local a
   while IFS= read -r a; do [[ -n "$a" && "$a" != "localhost" ]] && printf '  https://%s\n' "$a"; done < <(site_adressen)
+  local code
+  code="$(einrichtungscode)"
+  if [[ -n "$code" ]]; then
+    printf '\nEinrichtungscode (nur für die Ersteinrichtung): %s%s%s\n' "$FARBE_GOLD" "$code" "$FARBE_AUS"
+    printf 'Später wieder anzeigen: sudo grep LION_SETUP_CODE %s\n' "$(pfad_env)"
+  fi
   cat <<'EOF'
 
 Hinweis: Lion OS nutzt ein eigenes Zertifikat. Der Browser warnt beim ersten Besuch –
@@ -513,11 +679,13 @@ main() {
   bestaetigen
   installiere_grundwerkzeuge
   installiere_docker
+  installiere_node
   lege_benutzer_an
   lege_ordner_an
   schreibe_konfiguration
   schreibe_stack
   kopiere_katalog
+  installiere_core
   richte_dienst_ein
   warte_auf_start
   zusammenfassung

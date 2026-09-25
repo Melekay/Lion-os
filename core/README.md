@@ -26,8 +26,8 @@ Im Betrieb lauscht lion-core nur auf `127.0.0.1`; Caddy leitet von außen weiter
 | Methode | Pfad | Anmeldung | Zweck |
 |---|---|---|---|
 | GET | `/api/health` | nein | Lebenszeichen + Version |
-| GET | `/api/setup/status` | nein | Ist Lion OS schon eingerichtet? |
-| POST | `/api/setup` | nein, nur einmal | Ersten Admin anlegen `{name, passwort}` |
+| GET | `/api/setup/status` | nein | Ist Lion OS schon eingerichtet? Braucht es einen Code? `{eingerichtet, codeNoetig}` |
+| POST | `/api/setup` | nein, nur einmal | Ersten Admin anlegen `{name, passwort, code}` |
 | POST | `/api/auth/login` | nein | Anmelden `{name, passwort}` |
 | POST | `/api/auth/logout` | ja | Abmelden |
 | GET | `/api/auth/me` | ja | Aktueller Benutzer |
@@ -46,8 +46,11 @@ Alle ändernden Anfragen (POST, PUT, DELETE) brauchen den Header `X-Lion-Request
 - **Sitzungen:** Zufalls-Token im Cookie (`HttpOnly`, `Secure`, `SameSite=Strict`), in der Datenbank nur dessen SHA-256-Hash; Abmelden löscht serverseitig.
 - **Anmeldesperre:** 5 Fehlversuche in 15 Minuten → 15 Minuten gesperrt (pro IP).
 - Gleiche Antwort für falsches Passwort und unbekannten Namen; auch bei unbekanntem Namen wird gehasht (keine Laufzeit-Unterschiede).
-- **Einrichtung** ist nur möglich, solange noch kein Benutzer existiert.
+- **Einrichtung** ist nur möglich, solange noch kein Benutzer existiert – und nur mit dem Einrichtungscode
+  (`LION_SETUP_CODE`, vom Installer erzeugt). Vergleich in konstanter Zeit, Groß-/Kleinschreibung und Bindestriche egal,
+  nach 5 falschen Codes 15 Minuten Sperre. Ohne `LION_SETUP_CODE` (nur Entwicklung) warnt lion-core beim Start.
 - **Audit-Log** für Einrichtung, An- und Abmeldung inklusive Fehlversuchen.
+- **Im Betrieb:** systemd-Dienst `lion-core` als Benutzer `lion` mit Sandbox (siehe `installer/README.md`).
 
 ## Apps
 

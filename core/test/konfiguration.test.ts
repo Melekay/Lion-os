@@ -18,4 +18,10 @@ describe("Konfiguration", () => {
     expect(ladeKonfiguration({ LION_SECRET: "x".repeat(32), LION_PORT: "9000" }).port).toBe(9000);
     expect(() => ladeKonfiguration({ LION_SECRET: "x".repeat(32), LION_PORT: "70000" })).toThrow();
   });
+
+  it("liest den Einrichtungscode (optional, mindestens 8 Zeichen)", () => {
+    expect(ladeKonfiguration({ LION_SECRET: "x".repeat(32) }).einrichtungsCode).toBeUndefined();
+    expect(ladeKonfiguration({ LION_SECRET: "x".repeat(32), LION_SETUP_CODE: "ABCD-EFGH-JKLM" }).einrichtungsCode).toBe("ABCD-EFGH-JKLM");
+    expect(() => ladeKonfiguration({ LION_SECRET: "x".repeat(32), LION_SETUP_CODE: "kurz" })).toThrow(/LION_SETUP_CODE/);
+  });
 });

@@ -1,12 +1,58 @@
 import { describe, expect, it } from "vitest";
+import { oeffneDatenbank } from "../src/datenbank.js";
+import { baueServer } from "../src/server.js";
 import { MAX_VERSUCHE } from "../src/sperre.js";
-import { csrf, einrichten, PASSWORT, testServer, testServerMitApps } from "./helfer.js";
+import { BEISPIEL_STATUS, csrf, einrichten, PASSWORT, testServer, testServerMitApps } from "./helfer.js";
+
+describe("Einrichtungscode", () => {
+  const CODE = "K7QM-4XPA-9TRD";
+  const serverMitCode = () => {
+    const db = oeffneDatenbank(":memory:");
+    return baueServer({ db, version: "test", status: async () => BEISPIEL_STATUS, sichereCookies: false, einrichtungsCode: CODE });
+  };
+  const einrichtenMit = (app: ReturnType<typeof serverMitCode>, code?: string) =>
+    app.inject({ method: "POST", url: "/api/setup", headers: csrf, payload: { name: "admin", passwort: PASSWORT, code } });
+
+  it("meldet, dass ein Code nötig ist", async () => {
+    const res = await serverMitCode().inject({ url: "/api/setup/status" });
+    expect(res.json()).toEqual({ eingerichtet: false, codeNoetig: true });
+  });
+
+  it("lehnt die Einrichtung ohne oder mit falschem Code ab", async () => {
+    const app = serverMitCode();
+    expect((await einrichtenMit(app)).statusCode).toBe(403);
+    expect((await einrichtenMit(app, "AAAA-BBBB-CCCC")).statusCode).toBe(403);
+    expect((await app.inject({ url: "/api/setup/status" })).json().eingerichtet).toBe(false);
+  });
+
+  it("akzeptiert den Code unabhängig von Schreibweise und Bindestrichen", async () => {
+    const res = await einrichtenMit(serverMitCode(), " k7qm 4xpa9trd ");
+    expect(res.statusCode).toBe(201);
+  });
+
+  it("sperrt nach zu vielen falschen Codes", async () => {
+    const app = serverMitCode();
+    for (let i = 0; i < MAX_VERSUCHE; i++) await einrichtenMit(app, "falsch-falsch");
+    const res = await einrichtenMit(app, CODE);
+    expect(res.statusCode).toBe(429);
+  });
+
+  it("protokolliert abgelehnte Versuche im Audit-Log", async () => {
+    const app = serverMitCode();
+    await einrichtenMit(app, "falsch-falsch");
+    const ok = await einrichtenMit(app, CODE);
+    const cookie = `lion_sitzung=${ok.cookies.find((c) => c.name === "lion_sitzung")?.value}`;
+    const audit = await app.inject({ url: "/api/audit", headers: { cookie } });
+    const einrichtungen = audit.json().eintraege.filter((e: { aktion: string }) => e.aktion === "einrichtung");
+    expect(einrichtungen.map((e: { ergebnis: string }) => e.ergebnis).sort()).toEqual(["abgelehnt", "erfolg"]);
+  });
+});
 
 describe("Einrichtung", () => {
   it("ist anfangs nicht eingerichtet", async () => {
     const { app } = testServer();
     const res = await app.inject({ url: "/api/setup/status" });
-    expect(res.json()).toEqual({ eingerichtet: false });
+    expect(res.json()).toEqual({ eingerichtet: false, codeNoetig: false });
   });
 
   it("legt den ersten Admin an und meldet ihn direkt an", async () => {
