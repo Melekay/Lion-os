@@ -47,8 +47,8 @@ jobs:
 
       - name: Oberfläche und API antworten per HTTPS
         run: |
-          curl -skf https://localhost/ | grep -q "<title>Übersicht · Lion OS</title>"
-          curl -skf https://localhost/apps/ | grep -q "<title>Apps · Lion OS</title>"
+          curl -skf https://localhost/ | grep -q "<title>Lion OS</title>"
+          curl -skf https://localhost/apps/ | grep -q "<title>App Store · Lion OS</title>"
           curl -skf https://localhost/api/health | grep -q '"ok":true'
           test "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/gibt-es-nicht/)" = "404"
           curl -sk -D - -o /dev/null https://localhost/ | grep -qi "^content-security-policy: default-src 'self'"

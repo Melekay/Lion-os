@@ -1,18 +1,13 @@
 "use client";
 
-import { Activity, Box, Cloud, ExternalLink, FolderOpen, KeyRound, Play, Plus, ShieldAlert, Square, Trash2 } from "lucide-react";
+import { ExternalLink, FolderOpen, Play, Plus, ShieldAlert, Square, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { lion } from "@/lib/api";
 import { aktionen, besteAdresse, kategorieText, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
 import type { AppAnsicht } from "@/lib/typen";
+import { AppSymbol } from "./AppSymbol";
 import { EntfernenDialog } from "./EntfernenDialog";
 import { Hinweis, Karte, Knopf, StatusPille } from "./ui";
-
-const KATEGORIE_ICON: Record<string, typeof Box> = {
-  ueberwachung: Activity,
-  sicherheit: KeyRound,
-  dateien: Cloud,
-};
 
 export function AppKarte({ app, hostname, onGeaendert }: { app: AppAnsicht; hostname: string; onGeaendert: () => void }) {
   const [sendet, setSendet] = useState<string | null>(null);
@@ -23,7 +18,6 @@ export function AppKarte({ app, hostname, onGeaendert }: { app: AppAnsicht; host
   const knoepfe = aktionen(app);
   const stufe = sicherheitsHinweis(app.sicherheitsstufe);
   const adresse = app.installiert ? besteAdresse(app.installiert.adressen, hostname) : null;
-  const Icon = KATEGORIE_ICON[app.kategorie] ?? Box;
 
   async function ausfuehren(name: string, aufruf: () => Promise<unknown>) {
     setSendet(name);
@@ -40,11 +34,9 @@ export function AppKarte({ app, hostname, onGeaendert }: { app: AppAnsicht; host
   }
 
   return (
-    <Karte as="article" className="flex flex-col gap-5 p-6">
+    <Karte as="article" className="flex scroll-mt-24 flex-col gap-5 p-6" id={app.id}>
       <div className="flex items-start gap-4">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-linie-hell bg-flaeche-2">
-          <Icon className="h-6 w-6 text-gold" aria-hidden="true" />
-        </span>
+        <AppSymbol id={app.id} kategorie={app.kategorie} groesse="klein" />
         <div className="min-w-0 flex-1 space-y-2">
           <div>
             <h2 className="text-lg font-semibold leading-tight">{app.name}</h2>

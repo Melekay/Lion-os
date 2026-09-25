@@ -13,7 +13,11 @@ export type Messwerte = {
   speicher: { pfad: string; gesamtGb: number; freiGb: number }[];
   temperaturC: number | null;
   laufzeitS: number;
+  /** Zähler seit dem Start (Bytes); die Oberfläche berechnet daraus die Rate. null ohne /proc/net/dev. */
+  netzwerk: Netzwerk | null;
 };
+
+export type Netzwerk = { schnittstelle: string; empfangenBytes: number; gesendetBytes: number };
 
 export type Hinweis = { bereich: "cpu" | "ram" | "speicher" | "temperatur"; stufe: Ampel; text: string };
 
@@ -83,6 +87,44 @@ async function hoechsteTemperatur(basis = "/sys/class/thermal"): Promise<number 
   }
 }
 
+/** Virtuelle Schnittstellen (Docker, Brücken, VPN, loopback) zählen nicht zum Heimnetz-Verkehr. */
+const VIRTUELL = /^(lo|docker|br-|veth|virbr|cni|flannel|tailscale|wg|tun|tap)/;
+
+/**
+ * Liest /proc/net/dev: Summe über echte Netzwerkkarten. Als Name gilt die Karte mit dem meisten Verkehr.
+ * Reine Funktion, damit sie ohne echtes System testbar ist.
+ */
+export function werteNetzwerkAus(procNetDev: string): Netzwerk | null {
+  let summe: Netzwerk | null = null;
+  let meister = -1;
+  for (const zeile of procNetDev.split("\n").slice(2)) {
+    const [name, rest] = zeile.split(":");
+    if (!name || rest === undefined) continue;
+    const schnittstelle = name.trim();
+    if (VIRTUELL.test(schnittstelle)) continue;
+    const felder = rest.trim().split(/\s+/).map(Number);
+    const empfangen = felder[0] ?? 0;
+    const gesendet = felder[8] ?? 0;
+    if (!Number.isFinite(empfangen) || !Number.isFinite(gesendet)) continue;
+    summe ??= { schnittstelle, empfangenBytes: 0, gesendetBytes: 0 };
+    summe.empfangenBytes += empfangen;
+    summe.gesendetBytes += gesendet;
+    if (empfangen + gesendet > meister) {
+      meister = empfangen + gesendet;
+      summe.schnittstelle = schnittstelle;
+    }
+  }
+  return summe;
+}
+
+async function netzwerk(): Promise<Netzwerk | null> {
+  try {
+    return werteNetzwerkAus(await readFile("/proc/net/dev", "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 /** Verfügbarer RAM in MB (MemAvailable zählt freigebbaren Cache mit, anders als os.freemem()). */
 async function verfuegbarerRamMb(): Promise<number> {
   try {
@@ -115,6 +157,7 @@ export async function messe(speicherPfade: string[] = ["/"]): Promise<Messwerte>
     speicher,
     temperaturC: await hoechsteTemperatur(),
     laufzeitS: Math.round(os.uptime()),
+    netzwerk: await netzwerk(),
   };
 }
 

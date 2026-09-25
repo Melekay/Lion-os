@@ -16,7 +16,7 @@ export function Apps() {
   return (
     <>
       <SeitenKopf
-        titel="Apps"
+        titel="App Store"
         text="Geprüfte Vorlagen mit festen Versionen. Jede App ist nur verschlüsselt über HTTPS erreichbar – und beim Entfernen bleiben deine Daten erhalten."
       />
       <ul className="mb-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gedaempft">

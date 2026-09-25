@@ -73,7 +73,7 @@ export function Geschuetzt({ children }: { children: React.ReactNode }) {
   return <SitzungKontext.Provider value={{ name, abmelden }}>{children}</SitzungKontext.Provider>;
 }
 
-/** Für Anmeldung und Einrichtung: Wer schon angemeldet ist, landet direkt in der Übersicht. */
+/** Für Anmeldung und Einrichtung: Wer schon angemeldet ist, landet direkt auf der Startseite. */
 export function useSchonAngemeldet(): boolean {
   const router = useRouter();
   const [pruefend, setPruefend] = useState(true);

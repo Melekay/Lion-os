@@ -37,7 +37,7 @@ test.describe("Führung durch die Oberfläche", () => {
     await page.getByLabel("Einrichtungscode").fill("abcd-efgh-jklm".toUpperCase());
     await page.getByRole("button", { name: "Konto anlegen" }).click();
     await expect(page).toHaveURL(START);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("emil");
+    await expect(page.getByRole("banner")).toContainText("emil");
   });
 
   test("Einrichtung prüft Passwort-Länge und Wiederholung, bevor etwas gesendet wird", async ({ page }) => {
@@ -85,15 +85,66 @@ test.describe("Führung durch die Oberfläche", () => {
   });
 });
 
-test.describe("Übersicht", () => {
-  test("zeigt Ampel, Messwerte und Laufzeit", async ({ page }) => {
+test.describe("Startseite", () => {
+  test("zeigt Widgets: System mit Ampel, Speicher, Laufzeit", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Alles in Ordnung" })).toBeVisible();
+    await expect(page.getByText("Alles in Ordnung")).toBeVisible();
     await expect(page.getByText("Lion OS läuft seit 3 Tagen, 5 Std.")).toBeVisible();
     await expect(page.getByRole("meter", { name: "Arbeitsspeicher belegt" })).toHaveAttribute("aria-valuenow", "25");
+    await expect(page.getByRole("meter", { name: "Speicher System belegt" })).toHaveAttribute("aria-valuenow", "36");
     await expect(page.getByText("48 °C")).toBeVisible();
     await expect(page.getByText("Noch keine App installiert.")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Aktivität" })).toContainText("Abgelehnt");
     await barrierefrei(page);
+  });
+
+  test("Netzwerk-Widget berechnet die Rate aus den Zählern", async ({ page }) => {
+    await page.clock.install();
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Netzwerk" })).toContainText("eth0");
+    // Attrappe: +250 kB empfangen und +40 kB gesendet pro Abfrage. Die genaue Rechnung prüfen die Unit-Tests;
+    // hier zählt, dass aus zwei Zählerständen eine Rate im richtigen Verhältnis (250 : 40) wird.
+    await page.clock.runFor(5_000);
+    await page.clock.runFor(5_000);
+    const bild = page.getByRole("img", { name: /Netzwerk-Verlauf/ });
+    await expect(bild).toHaveAttribute("aria-label", /^Netzwerk-Verlauf\. Empfangen (25|50) kB\/s, gesendet (4|8) kB\/s\.$/);
+    const label = (await bild.getAttribute("aria-label")) ?? "";
+    const [runter, hoch] = [...label.matchAll(/(\d+) kB/g)].map((m) => Number(m[1]));
+    expect((runter ?? 0) / (hoch ?? 1)).toBeCloseTo(6.25, 1);
+  });
+
+  test("Kacheln: laufende App öffnet sich direkt, andere führen in den App Store", async ({ page }) => {
+    api.app("uptime-kuma").installiert = { status: "laeuft", meldung: null, adressen: ["https://localhost:8101"], datenordner: "/srv/lion/apps/uptime-kuma" };
+    api.app("vaultwarden").installiert = { status: "gestoppt", meldung: null, adressen: ["https://localhost:8102"], datenordner: "/srv/lion/apps/vaultwarden" };
+    await page.goto("/");
+    const kuma = page.getByRole("link", { name: "Uptime Kuma öffnen (neuer Tab)" });
+    await expect(kuma).toHaveAttribute("href", "https://localhost:8101");
+    await expect(kuma).toHaveAttribute("target", "_blank");
+    await expect(kuma).toHaveAttribute("rel", "noopener noreferrer");
+    const vault = page.getByRole("link", { name: /Vaultwarden – Gestoppt/ });
+    await expect(vault).toHaveAttribute("href", "/apps/#vaultwarden");
+    await expect(page.getByRole("link", { name: "App Store", exact: true })).toHaveAttribute("href", "/apps/");
+    await barrierefrei(page);
+  });
+
+  test("Suche filtert die Kacheln", async ({ page }) => {
+    api.app("uptime-kuma").installiert = { status: "laeuft", meldung: null, adressen: ["https://localhost:8101"], datenordner: "/x" };
+    api.app("vaultwarden").installiert = { status: "laeuft", meldung: null, adressen: ["https://localhost:8102"], datenordner: "/y" };
+    await page.goto("/");
+    await expect(page.getByRole("link", { name: /Vaultwarden/ })).toBeVisible();
+    await page.getByRole("searchbox", { name: "Apps suchen" }).fill("kuma");
+    await expect(page.getByRole("link", { name: /Uptime Kuma/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Vaultwarden/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "App Store", exact: true })).toHaveCount(0);
+    await page.getByRole("searchbox", { name: "Apps suchen" }).fill("gibtsnicht");
+    await expect(page.getByText("Keine App gefunden für „gibtsnicht“.")).toBeVisible();
+  });
+
+  test("„+“ führt in den App Store", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "App hinzufügen" }).click();
+    await expect(page).toHaveURL(/\/apps\/$/);
+    await expect(page.getByRole("heading", { name: "App Store" })).toBeVisible();
   });
 
   test("zeigt Hinweise von lion-core bei gelber/roter Ampel", async ({ page }) => {
@@ -104,9 +155,10 @@ test.describe("Übersicht", () => {
       hinweise: [{ bereich: "speicher", stufe: "rot", text: "Speicher / ist zu 95 % voll. Bitte Platz schaffen, sonst drohen Ausfälle." }],
     };
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Handlungsbedarf" })).toBeVisible();
+    await expect(page.getByText("Handlungsbedarf")).toBeVisible();
     await expect(page.getByText("Speicher / ist zu 95 % voll.")).toBeVisible();
-    await expect(page.getByRole("meter", { name: "Speicher / belegt" })).toHaveAttribute("aria-valuenow", "95");
+    await expect(page.getByRole("meter", { name: "Speicher System belegt" })).toHaveAttribute("aria-valuenow", "95");
+    await expect(page.getByRole("region", { name: "Speicher" })).toContainText("Fast voll");
   });
 });
 

@@ -37,8 +37,22 @@ export function Knopf({
   );
 }
 
-export function Karte({ children, className = "", as: Tag = "section" }: { children: ReactNode; className?: string; as?: "section" | "div" | "article" }) {
-  return <Tag className={`rounded-karte border border-linie bg-flaeche/90 shadow-karte backdrop-blur-sm ${className}`}>{children}</Tag>;
+export function Karte({
+  children,
+  className = "",
+  as: Tag = "section",
+  id,
+}: {
+  children: ReactNode;
+  className?: string;
+  as?: "section" | "div" | "article";
+  id?: string;
+}) {
+  return (
+    <Tag id={id} className={`rounded-karte border border-white/[0.06] bg-flaeche/80 shadow-karte backdrop-blur-md ${className}`}>
+      {children}
+    </Tag>
+  );
 }
 
 export function Feld({
