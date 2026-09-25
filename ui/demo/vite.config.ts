@@ -24,6 +24,14 @@ const hier = dirname(fileURLToPath(import.meta.url));
 const ui = resolve(hier, "..");
 const APPS = resolve(ui, "../apps");
 
+function logoDaten(id: string): string | null {
+  try {
+    return `data:image/svg+xml;base64,${readFileSync(join(APPS, id, "logo.svg")).toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 /** App-Katalog aus apps/<id>/lion-app.yaml – dieselben Vorlagen wie im echten Lion OS. */
 function katalog(): Plugin {
   const ID = "virtual:lion-katalog";
@@ -47,6 +55,8 @@ function katalog(): Plugin {
           hinweise: m.hinweise ?? [],
           medien: m.medien ?? "keine",
           ramMinMb: m.ressourcen?.ram_min_mb ?? 0,
+          // In der Demo als data:-Adresse eingebettet – im echten Lion OS liefert lion-core das geprüfte Logo aus.
+          logo: logoDaten(m.id),
         }))
         .sort((a, b) => a.id.localeCompare(b.id));
       return `export default ${JSON.stringify(eintraege)};`;

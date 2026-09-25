@@ -47,6 +47,21 @@ Vorhandene Ordner (z. B. nach einer Neuinstallation) bleiben unverändert.
 
 **Wichtig:** Der Medienordner liegt nicht im Backup. Filme und Musik sind groß und meist woanders gesichert.
 
+## Logos
+
+Jede Vorlage kann eine `logo.svg` mitbringen. Die Oberfläche zeigt sie auf einer weißen Kachel;
+ohne Logo erscheint ein eigenes Symbol. lion-core prüft jedes Logo beim Laden streng und liefert
+es mit Sperr-CSP (`default-src 'none'`) und `nosniff` aus:
+
+- nur SVG, höchstens 64 KB
+- keine Skripte, keine `on…`-Attribute, keine DTD/Entities
+- nichts Eingebettetes oder Verknüpftes (`image`, `use`, `foreignObject`, …), keine externen `href`/`url()`
+
+**Herkunft:** [homarr-labs/dashboard-icons](https://github.com/homarr-labs/dashboard-icons),
+Stand 25.09.2026, Lizenz Apache-2.0 (siehe `LOGOS-LIZENZ.txt`). Die Logos und Marken gehören den
+jeweiligen Projekten. Lion OS nutzt sie nur, um die App zu kennzeichnen – keine Verbindung und keine
+Empfehlung durch die Projekte.
+
 ## App-Protokoll
 
 Die Oberfläche zeigt die letzten 300 Zeilen von `docker compose logs` (Knopf „Protokoll“).

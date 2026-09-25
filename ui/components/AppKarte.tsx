@@ -54,7 +54,7 @@ export function AppKarte({
   return (
     <Karte as="article" className="flex scroll-mt-24 flex-col gap-5 p-6" id={app.id}>
       <div className="flex items-start gap-4">
-        <AppSymbol id={app.id} kategorie={app.kategorie} groesse="klein" />
+        <AppSymbol id={app.id} kategorie={app.kategorie} logo={app.logo} groesse="klein" />
         <div className="min-w-0 flex-1 space-y-2">
           <div>
             <h2 className="text-lg font-semibold leading-tight">{app.name}</h2>

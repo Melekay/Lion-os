@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { appDatenOrdner, ladeKatalog, ManifestSchema, pruefeCompose } from "../src/katalog.js";
+import { appDatenOrdner, ladeKatalog, ManifestSchema, pruefeCompose, pruefeLogo } from "../src/katalog.js";
 
 const KATALOG = fileURLToPath(new URL("../../apps", import.meta.url));
 
@@ -146,5 +146,37 @@ describe("Sicherheitsregeln für compose.yaml", () => {
   it("lehnt fehlenden Web-Dienst und kaputtes YAML ab", () => {
     expect(pruefeCompose(gut.replace("  app:", "  web:"), manifest).join(" ")).toMatch(/Web-Dienst/);
     expect(pruefeCompose("services: [", manifest)[0]).toMatch(/kein gültiges YAML/);
+  });
+});
+
+describe("App-Logos", () => {
+  it("jede mitgelieferte App hat ein geprüftes Logo", async () => {
+    const { vorlagen } = await ladeKatalog(KATALOG);
+    for (const v of vorlagen) expect(v.logo, v.manifest.id).toMatch(/<svg[\s>]/);
+  });
+
+  const gut = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><defs><linearGradient id="a"/></defs><rect fill="url(#a)" width="10" height="10"/></svg>';
+
+  it("akzeptiert ein schlichtes SVG mit internen Verweisen", () => {
+    expect(pruefeLogo(gut)).toEqual([]);
+    expect(pruefeLogo(`<?xml version="1.0"?>\n${gut}`)).toEqual([]);
+  });
+
+  const verstoesse: [string, string, RegExp][] = [
+    ["Skript", gut.replace("<rect", "<script>alert(1)</script><rect"), /Skript/],
+    ["Ereignis-Attribut", gut.replace("<rect", '<rect onload="alert(1)"'), /Ereignis/],
+    ["externer Link", gut.replace("<rect", '<a href="https://böse.example"><rect').replace("</svg>", "</a></svg>"), /extern/],
+    ["javascript-Link", gut.replace("<rect", '<a xlink:href="javascript:alert(1)"><rect'), /extern/],
+    ["eingebettetes Bild", gut.replace("<rect", '<image href="data:image/png;base64,AA"/><rect'), /eingebettet/],
+    ["foreignObject", gut.replace("<rect", "<foreignObject><div/></foreignObject><rect"), /eingebettet/],
+    ["externe Stile", gut.replace("<rect", "<style>@import url(https://x.example/a.css)</style><rect"), /extern/],
+    ["url() nach außen", gut.replace("url(#a)", "url(https://x.example/a.svg#a)"), /extern/],
+    ["Entities", `<!DOCTYPE svg [<!ENTITY x "y">]>${gut}`, /DTD|SVG-Datei/],
+    ["kein SVG", "<html><body>hallo</body></html>", /SVG-Datei/],
+    ["zu groß", gut.replace("</svg>", `<!--${"x".repeat(70_000)}--></svg>`), /größer/],
+  ];
+
+  it.each(verstoesse)("lehnt ab: %s", (_name, svg, erwartet) => {
+    expect(pruefeLogo(svg).join(" ")).toMatch(erwartet);
   });
 });

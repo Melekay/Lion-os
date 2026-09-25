@@ -50,7 +50,7 @@ function AppKachel({ app, hostname }: { app: AppAnsicht; hostname: string }) {
         extern={Boolean(adresse)}
         label={adresse ? app.name : `${app.name} – ${st.text}, im App Store verwalten`}
       >
-        <AppSymbol id={app.id} kategorie={app.kategorie} />
+        <AppSymbol id={app.id} kategorie={app.kategorie} logo={app.logo} />
         <span className="line-clamp-2 text-sm font-semibold">{app.name}</span>
         <span className={`absolute right-3 top-3 h-2.5 w-2.5 rounded-full ${PUNKT[st.ton]}`} title={st.text} aria-hidden="true" />
       </Kachel>

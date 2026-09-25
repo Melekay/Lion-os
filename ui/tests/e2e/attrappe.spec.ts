@@ -275,6 +275,15 @@ test.describe("Apps", () => {
     await expect(page.getByRole("article")).toHaveCount(4);
   });
 
+  test("Apps mit Logo zeigen das Original-Logo, andere ein eigenes Symbol", async ({ page }) => {
+    await page.goto("/apps/");
+    const logo = page.getByRole("article").filter({ hasText: "Jellyfin" }).locator("img");
+    await expect(logo).toHaveAttribute("src", "/api/apps/jellyfin/logo");
+    await expect(logo).toHaveAttribute("alt", "");
+    await expect.poll(() => logo.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBeGreaterThan(0);
+    await expect(page.getByRole("article").filter({ hasText: "Uptime Kuma" }).locator("img")).toHaveCount(0);
+  });
+
   test("Medien-Apps zeigen ihren Zugriff auf den Medienordner", async ({ page }) => {
     await page.goto("/apps/");
     await expect(page.getByRole("article").filter({ hasText: "Jellyfin" })).toContainText("Liest den Medienordner (nur lesen)");

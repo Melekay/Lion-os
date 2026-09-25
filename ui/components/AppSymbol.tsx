@@ -26,8 +26,8 @@ import {
 } from "lucide-react";
 
 /**
- * Eigene App-Symbole: Farbverlauf + Piktogramm. Bewusst keine fremden Markenlogos –
- * jede App ist trotzdem auf einen Blick unterscheidbar.
+ * App-Symbole: das Original-Logo der App auf weißer Kachel, wenn der Katalog eines mitliefert.
+ * Sonst (und für Lion-eigene Kacheln wie App Store oder Backup) ein eigenes Symbol aus Farbverlauf + Piktogramm.
  */
 type Symbol = { icon: LucideIcon; verlauf: string };
 
@@ -64,10 +64,30 @@ const NACH_KATEGORIE: Record<string, Symbol> = {
   ki: { icon: Sparkles, verlauf: "from-violet-300 to-fuchsia-700" },
 };
 
-export function AppSymbol({ id, kategorie = "", groesse = "gross" }: { id: string; kategorie?: string; groesse?: "gross" | "klein" }) {
+export function AppSymbol({
+  id,
+  kategorie = "",
+  groesse = "gross",
+  logo,
+}: {
+  id: string;
+  kategorie?: string;
+  groesse?: "gross" | "klein";
+  /** Original-Logo der App (von lion-core geprüft). Ohne Logo: eigenes Symbol. */
+  logo?: string | null;
+}) {
+  const masse = groesse === "gross" ? "h-14 w-14 rounded-2xl" : "h-11 w-11 rounded-xl";
+  if (logo) {
+    return (
+      <span aria-hidden="true" className={`grid shrink-0 place-items-center bg-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] ${masse}`}>
+        {/* Statischer Export ohne Bild-Optimierung: ein schlichtes <img> reicht. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logo} alt="" draggable={false} decoding="async" className="h-[68%] w-[68%] object-contain" />
+      </span>
+    );
+  }
   const s = NACH_ID[id] ?? NACH_KATEGORIE[kategorie] ?? { icon: Box, verlauf: "from-zinc-400 to-zinc-600" };
   const Icon = s.icon;
-  const masse = groesse === "gross" ? "h-14 w-14 rounded-2xl" : "h-11 w-11 rounded-xl";
   return (
     <span
       aria-hidden="true"

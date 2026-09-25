@@ -27,7 +27,26 @@ export const ManifestSchema = z.object({
 });
 
 export type Manifest = z.infer<typeof ManifestSchema>;
-export type Vorlage = { manifest: Manifest; compose: string; verzeichnis: string };
+export type Vorlage = { manifest: Manifest; compose: string; verzeichnis: string; logo: string | null };
+
+export const MAX_LOGO_BYTES = 64 * 1024;
+
+/**
+ * Prüft ein App-Logo (SVG). Es wird von lion-core ausgeliefert, deshalb streng:
+ * keine Skripte, keine Ereignis-Attribute, keine eingebetteten Fremdinhalte, keine externen Verweise.
+ */
+export function pruefeLogo(svg: string): string[] {
+  const fehler: string[] = [];
+  if (Buffer.byteLength(svg, "utf8") > MAX_LOGO_BYTES) fehler.push(`Logo ist größer als ${MAX_LOGO_BYTES / 1024} KB.`);
+  if (!/^\s*(<\?xml[^>]*\?>\s*)?<svg[\s>]/i.test(svg)) fehler.push("Logo muss eine SVG-Datei sein.");
+  if (/<script/i.test(svg)) fehler.push("Logo enthält ein Skript.");
+  if (/<(foreignObject|iframe|object|embed|image|use|animate|set)\b/i.test(svg)) fehler.push("Logo enthält eingebettete oder verknüpfte Inhalte.");
+  if (/\son[a-z]+\s*=/i.test(svg)) fehler.push("Logo enthält Ereignis-Attribute (on…).");
+  if (/(href|src)\s*=\s*["']\s*(?!#)/i.test(svg)) fehler.push("Logo verweist auf externe Inhalte.");
+  if (/url\(\s*["']?\s*(?!#)/i.test(svg) || /@import/i.test(svg)) fehler.push("Logo lädt externe Stile oder Bilder.");
+  if (/<!ENTITY|<!DOCTYPE/i.test(svg)) fehler.push("Logo enthält DTD/Entities.");
+  return fehler;
+}
 
 /** Erlaubte Host-Pfade: Unterordner der App-Daten oder des Medienordners (Buchstaben inkl. Umlaute, Ziffern, . _ -). */
 const APP_DATEN_PFAD = /^\$\{LION_APP_DATA\}(\/[\p{L}\p{N}._-]+)*$/u;
@@ -139,7 +158,15 @@ export async function ladeKatalog(verzeichnis: string): Promise<{ vorlagen: Vorl
       const compose = await readFile(join(pfad, "compose.yaml"), "utf8");
       const verstoesse = pruefeCompose(compose, manifest);
       if (verstoesse.length) throw new Error(verstoesse.join(" "));
-      vorlagen.push({ manifest, compose, verzeichnis: pfad });
+      const logo = await readFile(join(pfad, "logo.svg"), "utf8").catch((e: NodeJS.ErrnoException) => {
+        if (e.code === "ENOENT") return null;
+        throw e;
+      });
+      if (logo !== null) {
+        const logoFehler = pruefeLogo(logo);
+        if (logoFehler.length) throw new Error(`logo.svg: ${logoFehler.join(" ")}`);
+      }
+      vorlagen.push({ manifest, compose, verzeichnis: pfad, logo });
     } catch (e) {
       const text = e instanceof z.ZodError ? e.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") : (e as Error).message;
       fehler.push(`${ordner}: ${text}`);
