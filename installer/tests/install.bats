@@ -146,6 +146,18 @@ os_release() {
   [[ "$output" == *"no-new-privileges:true"* ]]
 }
 
+@test "Caddy läuft im Host-Netzwerk und bindet den App-Ordner nur lesend ein" {
+  run render_compose
+  [[ "$output" == *"network_mode: host"* ]]
+  [[ "$output" == *"./apps:/etc/caddy/apps:ro"* ]]
+  [[ "$output" != *"ports:"* ]]
+}
+
+@test "Caddyfile importiert die App-Einträge" {
+  run render_caddyfile
+  [[ "$output" == *"import /etc/caddy/apps/*.caddy"* ]]
+}
+
 @test "Caddyfile nutzt lokales HTTPS und enthält localhost" {
   run render_caddyfile
   [[ "$output" == *"tls internal"* ]]
@@ -177,11 +189,17 @@ AUSGABE
   [ "$output" = "192.168.1.20" ]
 }
 
-@test "schreibe_stack legt Caddyfile, compose.yaml und Startseite an" {
+@test "schreibe_stack legt Caddyfile, compose.yaml, Startseite und Adressliste an" {
   schreibe_stack
+  grep -qx "localhost" "$LION_ROOT/etc/lion/adressen"
   [ -f "$LION_ROOT/opt/lion/stack/Caddyfile" ]
   [ -f "$LION_ROOT/opt/lion/stack/compose.yaml" ]
   grep -q "Lion" "$LION_ROOT/opt/lion/stack/www/index.html"
+}
+
+@test "kopiere_katalog kopiert die App-Vorlagen" {
+  kopiere_katalog
+  [ -d "$LION_ROOT/opt/lion/apps" ]
 }
 
 @test "systemd-Dienst startet den Stack über docker compose" {

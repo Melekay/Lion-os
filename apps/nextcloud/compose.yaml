@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:17.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ${LION_APP_DATA}/db:/var/lib/postgresql/data
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    image: nextcloud:31.0.9-apache
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: nextcloud
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      OVERWRITEPROTOCOL: https
+      TRUSTED_PROXIES: 172.16.0.0/12 192.168.0.0/16 10.0.0.0/8
+    ports:
+      - "127.0.0.1:${LION_APP_PORT}:80"
+    volumes:
+      - ${LION_APP_DATA}/html:/var/www/html

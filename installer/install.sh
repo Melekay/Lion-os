@@ -270,7 +270,7 @@ lege_benutzer_an() {
 }
 
 lege_ordner_an() {
-  ausfuehren install -d -m 0755 "$(pfad_opt)" "$(pfad_stack)" "$(pfad_stack)/www"
+  ausfuehren install -d -m 0755 "$(pfad_opt)" "$(pfad_stack)" "$(pfad_stack)/www" "$(pfad_stack)/apps"
   ausfuehren install -d -m 0750 "$(pfad_etc)" "$(pfad_var)"
   ausfuehren install -d -m 0755 "$(pfad_srv)" "$(pfad_srv)/apps"
   ok "Ordnerstruktur angelegt."
@@ -333,6 +333,9 @@ render_caddyfile() {
 	local_certs
 }
 
+# Ein Eintrag pro installierter App (von lion-core geschrieben).
+import /etc/caddy/apps/*.caddy
+
 http:// {
 	redir https://{host}{uri} permanent
 }
@@ -361,12 +364,13 @@ services:
     image: ${CADDY_IMAGE}
     container_name: lion-caddy
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
+    # Host-Netzwerk: Caddy kann so neue App-Ports öffnen und Apps auf 127.0.0.1 erreichen.
+    # Apps selbst veröffentlichen nur auf 127.0.0.1 – die einzige Tür nach außen ist Caddy.
+    network_mode: host
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./www:/srv/www:ro
+      - ./apps:/etc/caddy/apps:ro
       - caddy_data:/data
       - caddy_config:/config
     cap_drop:
@@ -410,12 +414,31 @@ render_startseite() {
 EOF
 }
 
+# Liste der Adressen für lion-core (App-Einträge in Caddy nutzen dieselben Adressen).
+schreibe_adressen() {
+  site_adressen | schreibe_datei "$(pfad_etc)/adressen" 0644
+}
+
+# Kopiert den App-Katalog aus dem Repository nach /opt/lion/apps.
+kopiere_katalog() {
+  local quelle
+  quelle="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/apps"
+  if [[ ! -d "$quelle" ]]; then
+    warnung "App-Katalog nicht gefunden ($quelle) – übersprungen."
+    return 0
+  fi
+  ausfuehren install -d -m 0755 "$(pfad_opt)/apps"
+  ausfuehren cp -a "$quelle/." "$(pfad_opt)/apps/"
+  ok "App-Katalog kopiert ($(pfad_opt)/apps)."
+}
+
 schreibe_stack() {
   local stack
   stack="$(pfad_stack)"
   render_caddyfile | schreibe_datei "$stack/Caddyfile" 0644
   render_compose | schreibe_datei "$stack/compose.yaml" 0644
   render_startseite | schreibe_datei "$stack/www/index.html" 0644
+  schreibe_adressen
   ok "Stack-Dateien geschrieben ($stack)."
 }
 
@@ -494,6 +517,7 @@ main() {
   lege_ordner_an
   schreibe_konfiguration
   schreibe_stack
+  kopiere_katalog
   richte_dienst_ein
   warte_auf_start
   zusammenfassung

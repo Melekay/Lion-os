@@ -27,6 +27,13 @@ const MIGRATIONEN: string[] = [
      ergebnis TEXT NOT NULL,
      details TEXT
    );`,
+  `CREATE TABLE apps (
+     id TEXT PRIMARY KEY,
+     nummer INTEGER NOT NULL UNIQUE,
+     status TEXT NOT NULL,
+     meldung TEXT,
+     installiert_am TEXT NOT NULL
+   );`,
 ];
 
 export type Datenbank = DatabaseSync;

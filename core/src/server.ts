@@ -1,6 +1,7 @@
 import cookie from "@fastify/cookie";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { z } from "zod";
+import { AppFehler, type AppVerwaltung } from "./apps.js";
 import { letzteEintraege, protokolliere } from "./audit.js";
 import type { Datenbank } from "./datenbank.js";
 import { hashePasswort, passwortRegelVerletzt, pruefePasswort } from "./passwort.js";
@@ -23,6 +24,7 @@ export type ServerOptionen = {
   /** Cookie nur über HTTPS senden (im Betrieb immer true, hinter Caddy). */
   sichereCookies?: boolean;
   logger?: boolean;
+  apps?: AppVerwaltung;
 };
 
 declare module "fastify" {
@@ -141,6 +143,33 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
     const anzahl = Number((req.query as { anzahl?: string }).anzahl ?? 100);
     return { eintraege: letzteEintraege(db, Number.isFinite(anzahl) ? anzahl : 100) };
   });
+
+  // ---- Apps ---------------------------------------------------------------
+  const apps = opt.apps;
+  if (apps) {
+    const mitFehlern = (arbeit: (req: FastifyRequest) => Promise<unknown> | unknown, code = 202) =>
+      async (req: FastifyRequest, reply: FastifyReply) => {
+        try {
+          const ergebnis = await arbeit(req);
+          return reply.code(code).send(ergebnis ?? { ok: true });
+        } catch (e) {
+          if (e instanceof AppFehler) return reply.code(e.code).send({ fehler: e.message });
+          throw e;
+        }
+      };
+    const id = (req: FastifyRequest) => (req.params as { id: string }).id;
+    const name = (req: FastifyRequest) => req.benutzer?.name ?? "unbekannt";
+
+    app.get("/api/apps", { preHandler: benoetigtAnmeldung }, async () => ({ apps: await apps.liste() }));
+    app.post("/api/apps/:id/installieren", { preHandler: benoetigtAnmeldung }, mitFehlern((req) => apps.installieren(id(req), name(req))));
+    app.post("/api/apps/:id/starten", { preHandler: benoetigtAnmeldung }, mitFehlern((req) => apps.starten(id(req), name(req))));
+    app.post("/api/apps/:id/stoppen", { preHandler: benoetigtAnmeldung }, mitFehlern((req) => apps.stoppen(id(req), name(req))));
+    app.post(
+      "/api/apps/:id/entfernen",
+      { preHandler: benoetigtAnmeldung },
+      mitFehlern((req) => apps.entfernen(id(req), name(req), (req.body as { bestaetigung?: unknown } | undefined)?.bestaetigung)),
+    );
+  }
 
   return app;
 }

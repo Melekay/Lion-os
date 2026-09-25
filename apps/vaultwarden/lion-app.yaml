@@ -1,0 +1,15 @@
+id: vaultwarden
+name: Vaultwarden
+beschreibung: Passwort-Manager für dich und deine Familie, kompatibel mit den Bitwarden-Apps.
+version: "1.34.3"
+kategorie: sicherheit
+sicherheitsstufe: sensibel
+web:
+  dienst: app
+  port: 80
+ressourcen:
+  ram_min_mb: 128
+hinweise:
+  - Lege direkt nach der Installation dein Konto an.
+  - Danach solltest du neue Registrierungen abschalten, damit sich niemand sonst ein Konto anlegt.
+  - Vaultwarden funktioniert nur über HTTPS – Lion OS richtet das automatisch ein.
