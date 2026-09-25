@@ -7,6 +7,16 @@ const START = /^http:\/\/localhost:\d+\/$/;
 
 /** Keine schweren Barrierefreiheits-Fehler (WCAG 2.2 AA). */
 async function barrierefrei(page: Page) {
+  // Erst prüfen, wenn Einblend- und Farbübergänge fertig sind – sonst misst axe halb durchsichtigen Text.
+  // Endlose Animationen (pulsierender Statuspunkt) werden ausgenommen.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => undefined)),
+    ),
+  );
   const ergebnis = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
   const schwer = ergebnis.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(schwer.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
