@@ -12,6 +12,7 @@ const Schema = z.object({
   LION_APPS_DATEN: z.string().default("/srv/lion/apps"),
   LION_CADDY_APPS: z.string().default("/opt/lion/stack/apps"),
   LION_ADRESSEN: z.string().default("/etc/lion/adressen"),
+  LION_SETUP_CODE: z.string().min(8, "LION_SETUP_CODE muss mindestens 8 Zeichen haben.").optional(),
 });
 
 export type Konfiguration = {
@@ -25,6 +26,7 @@ export type Konfiguration = {
   appsDaten: string;
   caddyApps: string;
   adressen: string;
+  einrichtungsCode?: string;
 };
 
 export function ladeKonfiguration(umgebung: NodeJS.ProcessEnv = process.env): Konfiguration {
@@ -45,5 +47,6 @@ export function ladeKonfiguration(umgebung: NodeJS.ProcessEnv = process.env): Ko
     appsDaten: k.LION_APPS_DATEN,
     caddyApps: k.LION_CADDY_APPS,
     adressen: k.LION_ADRESSEN,
+    einrichtungsCode: k.LION_SETUP_CODE,
   };
 }

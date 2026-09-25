@@ -23,7 +23,7 @@ jobs:
       - name: Werkzeuge installieren
         run: sudo apt-get update && sudo apt-get install -y shellcheck bats
       - name: shellcheck
-        run: shellcheck installer/install.sh
+        run: shellcheck installer/install.sh installer/tests/rauchtest.sh
       - name: Unit-Tests (bats)
         run: bats installer/tests
 
@@ -61,6 +61,22 @@ jobs:
           sudo grep -qx localhost /etc/lion/adressen
           sudo docker inspect -f '{{.State.Running}}' lion-caddy | grep -q true
 
+      - name: lion-core läuft als Benutzer „lion“, nur auf 127.0.0.1
+        run: |
+          systemctl is-active --quiet lion-core.service
+          pid="$(systemctl show -p MainPID --value lion-core.service)"
+          test "$(ps -o user= -p "$pid")" = "lion"
+          sudo ss -Hltnp | grep "pid=${pid}," | awk '{print $4}' | grep -qx '127.0.0.1:8080'
+          curl -skf https://localhost/api/health | grep -q '"ok":true'
+
+      - name: Sandbox von lion-core (Bewertung)
+        run: systemd-analyze security lion-core.service --no-pager | tail -n 1
+
+      - name: Rauchtest (Einrichtung, App installieren, erreichen, entfernen)
+        env:
+          LION_RAUCHTEST: "1"
+        run: ./installer/tests/rauchtest.sh
+
       - name: Zweiter Lauf ist idempotent (Geheimnis bleibt erhalten)
         run: |
           vorher="$(sudo sha256sum /etc/lion/lion.env)"
@@ -70,12 +86,13 @@ jobs:
 
       - name: Nach Neustart des Dienstes wieder erreichbar
         run: |
-          sudo systemctl restart lion.service
-          for _ in $(seq 1 30); do curl -skf https://localhost/ >/dev/null && exit 0; sleep 1; done
+          sudo systemctl restart lion.service lion-core.service
+          for _ in $(seq 1 30); do curl -skf https://localhost/api/health >/dev/null && exit 0; sleep 1; done
           exit 1
 
       - name: Protokolle bei Fehler
         if: failure()
         run: |
-          sudo systemctl status lion.service --no-pager || true
+          sudo systemctl status lion.service lion-core.service --no-pager || true
+          sudo journalctl -u lion-core.service --no-pager -n 100 || true
           sudo docker compose -f /opt/lion/stack/compose.yaml logs --no-color || true

@@ -208,3 +208,95 @@ AUSGABE
   [[ "$output" == *"ExecStart=/usr/bin/docker compose up -d"* ]]
   [[ "$output" == *"WorkingDirectory=/opt/lion/stack"* ]]
 }
+
+# --- Node.js ---------------------------------------------------------------
+
+@test "node_passt: erst ab Node 22.13" {
+  node_passt v22.13.0
+  node_passt v22.20.1
+  node_passt v24.1.0
+  ! node_passt v22.12.9
+  ! node_passt v20.19.2
+  ! node_passt ""
+  ! node_passt "kaputt"
+}
+
+@test "installiere_node überspringt eine passende Node-Version" {
+  printf '#!/bin/sh\necho v24.3.0\n' >"$TMP/node"
+  chmod +x "$TMP/node"
+  LION_NODE="$TMP/node" run installiere_node
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"v24.3.0 ist installiert"* ]]
+}
+
+@test "installiere_node nutzt im Probelauf das signierte NodeSource-Repository" {
+  DRY_RUN=1 LION_NODE="$TMP/gibt-es-nicht" run installiere_node
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nodesource.asc"* ]]
+  [[ "$output" == *"apt-get install -y nodejs"* ]]
+}
+
+# --- Einrichtungscode ------------------------------------------------------
+
+@test "Einrichtungscode hat das Format XXXX-XXXX-XXXX ohne verwechselbare Zeichen" {
+  local code
+  code="$(erzeuge_einrichtungscode)"
+  [[ "$code" =~ ^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$ ]]
+  [ "$code" != "$(erzeuge_einrichtungscode)" ]
+}
+
+@test "neue Konfiguration enthält einen Einrichtungscode" {
+  schreibe_konfiguration
+  [[ "$(einrichtungscode)" =~ ^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$ ]]
+}
+
+@test "ältere Konfiguration bekommt den Code ergänzt, das Geheimnis bleibt" {
+  mkdir -p "$LION_ROOT/etc/lion"
+  printf 'LION_VERSION=0.1.0-dev\nLION_SECRET=%s\n' "$(printf 'a%.0s' {1..64})" >"$LION_ROOT/etc/lion/lion.env"
+  chmod 600 "$LION_ROOT/etc/lion/lion.env"
+  run schreibe_konfiguration
+  [[ "$output" == *"Einrichtungscode ergänzt"* ]]
+  grep -q "^LION_SECRET=$(printf 'a%.0s' {1..64})$" "$LION_ROOT/etc/lion/lion.env"
+  [ -n "$(einrichtungscode)" ]
+  [ "$(stat -c %a "$LION_ROOT/etc/lion/lion.env")" = "600" ]
+  # Beim nächsten Lauf ändert sich nichts mehr.
+  local vorher
+  vorher="$(cat "$LION_ROOT/etc/lion/lion.env")"
+  schreibe_konfiguration
+  [ "$(cat "$LION_ROOT/etc/lion/lion.env")" = "$vorher" ]
+}
+
+@test "Zusammenfassung zeigt den Einrichtungscode" {
+  schreibe_konfiguration
+  site_adressen() { printf '%s\n' localhost 192.168.1.20; }
+  run zusammenfassung
+  [[ "$output" == *"$(einrichtungscode)"* ]]
+  [[ "$output" == *"https://192.168.1.20"* ]]
+}
+
+# --- lion-core -------------------------------------------------------------
+
+@test "Caddy leitet /api/ an lion-core auf 127.0.0.1 weiter" {
+  run render_caddyfile
+  [[ "$output" == *"handle /api/*"* ]]
+  [[ "$output" == *"reverse_proxy 127.0.0.1:8080"* ]]
+}
+
+@test "lion-core läuft als eigener Benutzer in einer Sandbox, nie als root" {
+  run render_core_unit
+  [[ "$output" == *"User=lion"* ]]
+  [[ "$output" != *"User=root"* ]]
+  [[ "$output" == *"SupplementaryGroups=docker"* ]]
+  [[ "$output" == *"NoNewPrivileges=yes"* ]]
+  [[ "$output" == *"CapabilityBoundingSet="* ]]
+  [[ "$output" == *"ProtectSystem=strict"* ]]
+  [[ "$output" == *"ReadWritePaths=/var/lib/lion /srv/lion/apps /opt/lion/stack/apps"* ]]
+  [[ "$output" == *"LION_HOST=127.0.0.1"* ]]
+  [[ "$output" == *"ExecStart=/usr/bin/node dist/index.js"* ]]
+}
+
+@test "lion-core startet nach Docker und dem Basis-Stack" {
+  run render_core_unit
+  [[ "$output" == *"Requires=docker.service"* ]]
+  [[ "$output" == *"After=docker.service lion.service"* ]]
+}
