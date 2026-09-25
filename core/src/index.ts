@@ -10,15 +10,16 @@ import { raeumeAbgelaufeneAuf } from "./sitzungen.js";
 const konfig = ladeKonfiguration();
 const db = oeffneDatenbank(konfig.datenbank);
 const katalog = await ladeKatalog(konfig.katalog);
+const caddy = new DateiCaddy(konfig.caddyApps, konfig.adressen);
 const apps = new AppVerwaltung({
   db,
   vorlagen: katalog.vorlagen,
   laufzeit: new DockerComposeLaufzeit(),
-  caddy: new DateiCaddy(konfig.caddyApps, konfig.adressen),
+  caddy,
   zustandsOrdner: konfig.appsZustand,
   datenOrdner: konfig.appsDaten,
 });
-const server = baueServer({ db, version: konfig.version, logger: true, apps, einrichtungsCode: konfig.einrichtungsCode });
+const server = baueServer({ db, version: konfig.version, logger: true, apps, einrichtungsCode: konfig.einrichtungsCode, adressen: () => caddy.adressen() });
 for (const f of katalog.fehler) server.log.warn(`App-Vorlage abgelehnt: ${f}`);
 server.log.info(`${katalog.vorlagen.length} App-Vorlagen geladen.`);
 if (!konfig.einrichtungsCode) server.log.warn("Kein LION_SETUP_CODE gesetzt – jeder im Netz kann die Einrichtung durchführen.");

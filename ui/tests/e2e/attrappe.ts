@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test";
-import type { AppAnsicht, AuditEintrag, Systemstatus } from "../../lib/typen";
+import type { AppAnsicht, AuditEintrag, SitzungsAnsicht, Systemstatus } from "../../lib/typen";
 
 /**
  * Nachgebildetes lion-core im Browser: So lassen sich Zustände prüfen, die mit echtem Docker
@@ -54,6 +54,14 @@ export class Attrappe {
     { id: 1, zeit: "2026-09-25T09:59:00.000Z", benutzer: "gast", aktion: "anmeldung", ziel: null, ergebnis: "abgelehnt", details: "ip=192.168.1.9" },
   ];
 
+  boxName = "Lion OS";
+  passwort = "richtiges-passwort";
+  sitzungen: SitzungsAnsicht[] = [
+    { id: 1, erstelltAm: "2026-09-25T09:00:00.000Z", laeuftAb: "2026-10-02T09:00:00.000Z", geraet: "Mozilla/5.0 (Windows NT 10.0) Firefox/140.0", ip: "192.168.1.5", aktuell: true },
+    { id: 2, erstelltAm: "2026-09-24T18:00:00.000Z", laeuftAb: "2026-10-01T18:00:00.000Z", geraet: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1", ip: "192.168.1.23", aktuell: false },
+    { id: 3, erstelltAm: null, laeuftAb: "2026-10-01T18:00:00.000Z", geraet: null, ip: null, aktuell: false },
+  ];
+
   private laufend = new Map<string, { ziel: "laeuft" | "weg"; rest: number }>();
 
   async verbinden(page: Page) {
@@ -97,7 +105,7 @@ export class Attrappe {
       return this.json(route, 201, { name: body.name });
     }
     if (pfad === "/api/auth/login") {
-      if (body?.passwort !== "richtiges-passwort") return this.json(route, 401, { fehler: "Name oder Passwort falsch." });
+      if (body?.passwort !== this.passwort) return this.json(route, 401, { fehler: "Name oder Passwort falsch." });
       this.angemeldet = true;
       return this.json(route, 200, { name: body.name });
     }
@@ -113,6 +121,28 @@ export class Attrappe {
       const n = this.system.netzwerk;
       if (n) this.system.netzwerk = { ...n, empfangenBytes: n.empfangenBytes + 250_000, gesendetBytes: n.gesendetBytes + 40_000 };
       return this.json(route, 200, this.system);
+    }
+    if (pfad === "/api/einstellungen" && methode === "GET") {
+      return this.json(route, 200, { boxName: this.boxName, version: "0.1.0-dev", adressen: ["localhost", "box.local", "192.168.1.20"] });
+    }
+    if (pfad === "/api/einstellungen") {
+      const name = String(body?.boxName ?? "").trim();
+      if (!name || name.length > 40 || /[<>]/.test(name)) return this.json(route, 400, { fehler: "Erlaubt sind Buchstaben, Ziffern, Leerzeichen und - _ . '" });
+      this.boxName = name;
+      return this.json(route, 200, { boxName: name });
+    }
+    if (pfad === "/api/auth/passwort") {
+      if (body?.altesPasswort !== this.passwort) return this.json(route, 403, { fehler: "Das bisherige Passwort stimmt nicht." });
+      this.passwort = body.neuesPasswort;
+      const abgemeldet = this.sitzungen.filter((s) => !s.aktuell).length;
+      this.sitzungen = this.sitzungen.filter((s) => s.aktuell);
+      return this.json(route, 200, { ok: true, abgemeldet });
+    }
+    if (pfad === "/api/auth/sitzungen") return this.json(route, 200, { sitzungen: this.sitzungen });
+    if (pfad === "/api/auth/sitzungen/abmelden") {
+      const vorher = this.sitzungen.length;
+      this.sitzungen = this.sitzungen.filter((s) => s.aktuell || (body?.id !== undefined && s.id !== body.id));
+      return this.json(route, 200, { ok: true, abgemeldet: vorher - this.sitzungen.length });
     }
     if (pfad === "/api/audit") return this.json(route, 200, { eintraege: this.protokoll });
     if (pfad === "/api/apps") {

@@ -1,4 +1,4 @@
-import { Activity, Box, Cloud, Film, Home, KeyRound, LayoutGrid, type LucideIcon, ScrollText, Shield } from "lucide-react";
+import { Activity, Box, Cloud, Film, Home, KeyRound, LayoutGrid, type LucideIcon, ScrollText, Settings, Shield } from "lucide-react";
 
 /**
  * Eigene App-Symbole: Farbverlauf + Piktogramm. Bewusst keine fremden Markenlogos –
@@ -12,6 +12,7 @@ const NACH_ID: Record<string, Symbol> = {
   nextcloud: { icon: Cloud, verlauf: "from-sky-400 to-blue-600" },
   "app-store": { icon: LayoutGrid, verlauf: "from-gold-hell to-gold-dunkel" },
   protokoll: { icon: ScrollText, verlauf: "from-stone-300 to-stone-500" },
+  einstellungen: { icon: Settings, verlauf: "from-slate-400 to-slate-600" },
 };
 
 const NACH_KATEGORIE: Record<string, Symbol> = {

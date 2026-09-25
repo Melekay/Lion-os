@@ -72,3 +72,35 @@ test("Abmelden beendet die Sitzung wirklich", async ({ page }) => {
   const antwort = await page.request.get("/api/auth/me");
   expect(antwort.status()).toBe(401);
 });
+
+test("Einstellungen mit echtem lion-core: Name der Box und Passwort ändern", async ({ page }) => {
+  await page.goto("/anmelden/");
+  await page.getByLabel("Name").fill("admin");
+  await page.getByLabel("Passwort").fill(PASSWORT);
+  await page.getByRole("button", { name: "Anmelden" }).click();
+  await expect(page).toHaveURL(START);
+
+  await page.goto("/einstellungen/");
+  await page.getByLabel("Name der Box").fill("Testbox");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByRole("banner")).toContainText("Testbox");
+  await expect(page.getByText("Dieses Gerät")).toBeVisible();
+
+  const NEU = "ein-neues-test-passwort-789";
+  await page.getByLabel("Bisheriges Passwort").fill(PASSWORT);
+  await page.getByLabel("Neues Passwort", { exact: true }).fill(NEU);
+  await page.getByLabel("Neues Passwort wiederholen").fill(NEU);
+  await page.getByRole("button", { name: "Passwort ändern" }).click();
+  await expect(page.getByText(/^Passwort geändert\./)).toBeVisible();
+
+  // Altes Passwort gilt nicht mehr, neues schon.
+  await page.getByRole("button", { name: "Abmelden" }).first().click();
+  await expect(page).toHaveURL(/\/anmelden\/$/);
+  await page.getByLabel("Name").fill("admin");
+  await page.getByLabel("Passwort").fill(PASSWORT);
+  await page.getByRole("button", { name: "Anmelden" }).click();
+  await expect(page.locator("form").getByRole("alert")).toContainText("Name oder Passwort falsch");
+  await page.getByLabel("Passwort").fill(NEU);
+  await page.getByRole("button", { name: "Anmelden" }).click();
+  await expect(page).toHaveURL(START);
+});

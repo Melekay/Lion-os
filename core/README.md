@@ -31,6 +31,11 @@ Im Betrieb lauscht lion-core nur auf `127.0.0.1`; Caddy leitet von außen weiter
 | POST | `/api/auth/login` | nein | Anmelden `{name, passwort}` |
 | POST | `/api/auth/logout` | ja | Abmelden |
 | GET | `/api/auth/me` | ja | Aktueller Benutzer |
+| POST | `/api/auth/passwort` | ja | Passwort ändern `{altesPasswort, neuesPasswort}` – meldet alle anderen Geräte ab |
+| GET | `/api/auth/sitzungen` | ja | Angemeldete Geräte (Gerät, IP, seit wann, `aktuell`) – nie Tokens oder Hashes |
+| POST | `/api/auth/sitzungen/abmelden` | ja | `{id}` beendet ein anderes Gerät, `{}` alle anderen |
+| GET | `/api/einstellungen` | ja | Name der Box, Version, Adressen |
+| POST | `/api/einstellungen` | ja | Name der Box ändern `{boxName}` (1–40 Zeichen, Buchstaben/Ziffern/Leerzeichen/`-_.'`) |
 | GET | `/api/system` | ja | CPU, RAM, Speicher, Temperatur, Netzwerk-Zähler (nur echte Karten) + Ampel mit Hinweisen |
 | GET | `/api/audit?anzahl=100` | ja | Letzte Einträge des Audit-Logs |
 | GET | `/api/apps` | ja | Katalog mit Installationsstatus und HTTPS-Adressen |
@@ -49,7 +54,8 @@ Alle ändernden Anfragen (POST, PUT, DELETE) brauchen den Header `X-Lion-Request
 - **Einrichtung** ist nur möglich, solange noch kein Benutzer existiert – und nur mit dem Einrichtungscode
   (`LION_SETUP_CODE`, vom Installer erzeugt). Vergleich in konstanter Zeit, Groß-/Kleinschreibung und Bindestriche egal,
   nach 5 falschen Codes 15 Minuten Sperre. Ohne `LION_SETUP_CODE` (nur Entwicklung) warnt lion-core beim Start.
-- **Audit-Log** für Einrichtung, An- und Abmeldung inklusive Fehlversuchen.
+- **Audit-Log** für Einrichtung, An- und Abmeldung, Passwortwechsel, Geräte-Abmeldung und Einstellungen – inklusive Fehlversuchen.
+- **Passwort ändern** verlangt das bisherige Passwort (Sperre nach 5 Fehlversuchen) und beendet alle anderen Sitzungen.
 - **Im Betrieb:** systemd-Dienst `lion-core` als Benutzer `lion` mit Sandbox (siehe `installer/README.md`).
 
 ## Apps

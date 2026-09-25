@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { ApiFehler, lion } from "@/lib/api";
 import { Hinweis, Knopf, Lader } from "./ui";
 
-type Sitzung = { name: string; abmelden: () => Promise<void> };
+type Sitzung = { name: string; boxName: string; setBoxName: (n: string) => void; abmelden: () => Promise<void> };
 
 const SitzungKontext = createContext<Sitzung | null>(null);
 
@@ -22,6 +22,7 @@ export function useSitzung(): Sitzung {
 export function Geschuetzt({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [name, setName] = useState<string | null>(null);
+  const [boxName, setBoxName] = useState("Lion OS");
   const [fehler, setFehler] = useState<string | null>(null);
   const [versuch, setVersuch] = useState(0);
 
@@ -32,7 +33,11 @@ export function Geschuetzt({ children }: { children: React.ReactNode }) {
         const status = await lion.setupStatus();
         if (!status.eingerichtet) return router.replace("/einrichtung/");
         const ich = await lion.ich();
-        if (aktiv) setName(ich.name);
+        // Der Name der Box ist nur Anzeige – fehlt er, bleibt „Lion OS“.
+        const einstellungen = await lion.einstellungen().catch(() => null);
+        if (!aktiv) return;
+        if (einstellungen) setBoxName(einstellungen.boxName);
+        setName(ich.name);
       } catch (e) {
         if (e instanceof ApiFehler && e.status === 401) return router.replace("/anmelden/");
         if (aktiv) setFehler(e instanceof Error ? e.message : "Unbekannter Fehler.");
@@ -70,7 +75,7 @@ export function Geschuetzt({ children }: { children: React.ReactNode }) {
     );
   }
   if (!name) return <Lader text="Lion OS wird geladen …" vollbild />;
-  return <SitzungKontext.Provider value={{ name, abmelden }}>{children}</SitzungKontext.Provider>;
+  return <SitzungKontext.Provider value={{ name, boxName, setBoxName, abmelden }}>{children}</SitzungKontext.Provider>;
 }
 
 /** Für Anmeldung und Einrichtung: Wer schon angemeldet ist, landet direkt auf der Startseite. */
