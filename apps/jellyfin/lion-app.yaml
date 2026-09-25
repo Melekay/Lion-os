@@ -1,0 +1,17 @@
+id: jellyfin
+name: Jellyfin
+beschreibung: Dein eigenes Netflix. Spielt Filme und Serien aus deinem Medienordner auf Fernseher, Handy und Browser ab.
+version: "10.11.11"
+kategorie: medien
+sicherheitsstufe: normal
+medien: lesen
+web:
+  dienst: app
+  port: 8096
+ressourcen:
+  ram_min_mb: 1024
+hinweise:
+  - Beim ersten Öffnen führt dich ein Assistent durch die Einrichtung. Deine Medien findest du dort unter /medien.
+  - Filme und Serien legst du mit „Dateien“ (FileBrowser) in die Ordner „Filme“ und „Serien“.
+  - Jellyfin liest den Medienordner nur. Löschen oder Umbenennen geht über „Dateien“.
+  - Ohne Grafikbeschleunigung kann das Umwandeln großer Videos das Gerät stark auslasten.

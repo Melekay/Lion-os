@@ -32,6 +32,8 @@ export type AppAnsicht = {
   version: string;
   sicherheitsstufe: "normal" | "sensibel" | "vollzugriff" | string;
   hinweise: string[];
+  /** Zugriff auf den gemeinsamen Medienordner. */
+  medien?: "keine" | "lesen" | "schreiben";
   installiert: null | {
     status: AppStatus;
     meldung: string | null;

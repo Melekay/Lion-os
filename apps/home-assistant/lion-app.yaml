@@ -1,0 +1,16 @@
+id: home-assistant
+name: Home Assistant
+beschreibung: Die Zentrale für dein Smart Home. Verbindet Lampen, Heizung, Sensoren und Steckdosen – ohne Hersteller-Cloud.
+version: "2026.9.3"
+kategorie: smarthome
+sicherheitsstufe: sensibel
+web:
+  dienst: app
+  port: 8123
+ressourcen:
+  ram_min_mb: 1024
+hinweise:
+  - Beim ersten Öffnen legst du dein Konto an und wählst deinen Standort.
+  - Geräte, die sich per WLAN oder Netzwerk verbinden, trägst du unter Einstellungen → Geräte ein. Die automatische Suche im Netz funktioniert hier nicht.
+  - USB-Sticks für Zigbee oder Z-Wave werden noch nicht unterstützt. Nutze ein Netzwerk-Gateway (z. B. SLZB-06) oder warte auf eine spätere Lion-OS-Version.
+  - Die Home-Assistant-Handy-App erreicht dein Zuhause von unterwegs nur über WireGuard.

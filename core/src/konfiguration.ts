@@ -10,6 +10,7 @@ const Schema = z.object({
   LION_KATALOG: z.string().default("/opt/lion/apps"),
   LION_APPS_ZUSTAND: z.string().default("/var/lib/lion/apps"),
   LION_APPS_DATEN: z.string().default("/srv/lion/apps"),
+  LION_MEDIEN: z.string().default("/srv/lion/medien"),
   LION_CADDY_APPS: z.string().default("/opt/lion/stack/apps"),
   LION_ADRESSEN: z.string().default("/etc/lion/adressen"),
   LION_BACKUP_ARBEIT: z.string().default("/var/lib/lion/backup"),
@@ -26,6 +27,7 @@ export type Konfiguration = {
   katalog: string;
   appsZustand: string;
   appsDaten: string;
+  medien: string;
   caddyApps: string;
   adressen: string;
   einrichtungsCode?: string;
@@ -49,6 +51,7 @@ export function ladeKonfiguration(umgebung: NodeJS.ProcessEnv = process.env): Ko
     katalog: k.LION_KATALOG,
     appsZustand: k.LION_APPS_ZUSTAND,
     appsDaten: k.LION_APPS_DATEN,
+    medien: k.LION_MEDIEN,
     caddyApps: k.LION_CADDY_APPS,
     adressen: k.LION_ADRESSEN,
     einrichtungsCode: k.LION_SETUP_CODE,

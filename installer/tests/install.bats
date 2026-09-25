@@ -108,6 +108,28 @@ os_release() {
   [ -z "$(ls -A "$LION_ROOT")" ]
 }
 
+# --- Medienordner ----------------------------------------------------------
+
+@test "Medienordner wird mit Unterordnern angelegt" {
+  MEDIEN_BESITZER="$(id -u):$(id -g)"
+  mkdir -p "$LION_ROOT/srv/lion"
+  run lege_medienordner_an
+  [ "$status" -eq 0 ]
+  for ordner in "" Filme Serien Musik Hörbücher; do
+    [ -d "$LION_ROOT/srv/lion/medien/$ordner" ]
+  done
+  [ "$(stat -c %a "$LION_ROOT/srv/lion/medien")" = "755" ]
+}
+
+@test "vorhandene Medienordner bleiben unverändert" {
+  MEDIEN_BESITZER="$(id -u):$(id -g)"
+  mkdir -p "$LION_ROOT/srv/lion/medien/Filme"
+  chmod 700 "$LION_ROOT/srv/lion/medien/Filme"
+  lege_medienordner_an
+  [ "$(stat -c %a "$LION_ROOT/srv/lion/medien/Filme")" = "700" ]
+  [ -d "$LION_ROOT/srv/lion/medien/Musik" ]
+}
+
 # --- Konfiguration ---------------------------------------------------------
 
 @test "Konfiguration wird mit Rechten 600 und Geheimnis angelegt" {

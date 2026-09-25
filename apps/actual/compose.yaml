@@ -1,0 +1,10 @@
+services:
+  app:
+    image: actualbudget/actual-server:26.9.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LION_APP_PORT}:5006"
+    volumes:
+      - ${LION_APP_DATA}/data:/data
+    security_opt:
+      - no-new-privileges:true

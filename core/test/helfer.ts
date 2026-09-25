@@ -52,6 +52,7 @@ export async function testServerMitApps() {
       stoppen: async () => {},
       entfernen: async () => {},
       status: async () => "laeuft",
+      protokoll: async () => "app-1  | gestartet\n",
     },
     caddy: { eintragSetzen: async () => {}, eintragEntfernen: async () => {}, adressen: async () => ["localhost"] },
     zustandsOrdner: join(basis, "zustand"),

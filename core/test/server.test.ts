@@ -196,4 +196,16 @@ describe("App-Routen", () => {
     const ohne = await app.inject({ method: "POST", url: "/api/apps/uptime-kuma/entfernen", headers: { ...csrf, cookie }, payload: {} });
     expect(ohne.statusCode).toBe(400);
   });
+
+  it("zeigt das Protokoll installierter Apps nur angemeldet", async () => {
+    const { app, apps } = await testServerMitApps();
+    const { cookie } = await einrichten(app);
+    expect((await app.inject({ url: "/api/apps/uptime-kuma/protokoll" })).statusCode).toBe(401);
+    expect((await app.inject({ url: "/api/apps/uptime-kuma/protokoll", headers: { cookie } })).statusCode).toBe(404);
+    await app.inject({ method: "POST", url: "/api/apps/uptime-kuma/installieren", headers: { ...csrf, cookie } });
+    await apps.warteAuf("uptime-kuma");
+    const res = await app.inject({ url: "/api/apps/uptime-kuma/protokoll", headers: { cookie } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ zeilen: ["app-1  | gestartet"] });
+  });
 });

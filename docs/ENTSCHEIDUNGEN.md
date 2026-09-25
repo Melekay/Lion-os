@@ -38,6 +38,12 @@ Jede Architekturentscheidung wird hier mit Datum und Begründung festgehalten.
 | 32 | 25.09.2026 | Backup-Ziel nur unter `/mnt` oder `/media`, auf **anderer Festplatte** | Das Ziel wird in einen Container eingebunden – keine Systemordner; ein Backup auf derselben Platte schützt nicht vor Plattenschaden | Beliebiger Pfad |
 | 33 | 25.09.2026 | Wiederherstellen legt aktuelle Daten **beiseite** statt sie zu löschen; Rückrollen bei Fehler | Eine falsche Wiederherstellung darf nichts zerstören | Überschreiben |
 | 34 | 25.09.2026 | Wiederherstellungsschlüssel wird **einmal** gezeigt, danach nur mit Passwort | Ohne ihn ist das Backup auf neuer Hardware wertlos; wer die Sitzung kapert, soll ihn nicht einfach lesen können | Schlüssel immer sichtbar, Schlüssel nie wieder zeigen |
+| 35 | 25.09.2026 | Katalog wächst auf **14 Apps** (u. a. Immich, Paperless-ngx, Jellyfin, Home Assistant, Ollama) | Das App-Format ist mit drei Vorlagen geprüft; jede neue Vorlage wird in der CI wirklich installiert | Weiter nur 3 Apps |
+| 36 | 25.09.2026 | lion-core legt Datenordner vorab an, neue Ordner mit `0777` unter privatem `0750`-App-Ordner | Viele Images laufen nicht als root und könnten sonst nicht in von Docker angelegte root-Ordner schreiben | `user:` pro Vorlage (bricht Images, die root brauchen), chown auf feste UIDs (braucht root) |
+| 37 | 25.09.2026 | **Gemeinsamer Medienordner** `/srv/lion/medien`: nur „Dateien“ schreibt, Medien-Apps lesen (`:ro` erzwungen) | Filme/Musik einmal ablegen, in allen Apps nutzen; eine fehlerhafte Medien-App kann nichts löschen | Medien pro App getrennt (doppelter Platz), alle dürfen schreiben |
+| 38 | 25.09.2026 | Medienordner **nicht im Backup** | Große Dateien würden das Backup-Ziel schnell füllen; oft gibt es sie ohnehin woanders | Mitsichern (später als Option) |
+| 39 | 25.09.2026 | **App-Protokoll** in der Oberfläche (letzte 300 Zeilen, nur angemeldet) | FileBrowser zeigt sein Start-Passwort nur dort; hilft bei Fehlern ohne SSH | Passwort per Umgebungsvariable vorgeben (stünde dann dauerhaft in `.env`) |
+| 40 | 25.09.2026 | Home Assistant **ohne Host-Netz und ohne Geräte** | Unsere Katalog-Regeln bleiben ausnahmslos; Proxy-Konfiguration schreibt ein Start-Skript beim ersten Start | Host-Netz + USB durchreichen (bräuchte eine Ausnahme mit Stufe „vollzugriff“) |
 
 ## Offen
 
@@ -48,4 +54,7 @@ Jede Architekturentscheidung wird hier mit Datum und Begründung festgehalten.
 - lion-ui nutzt ESLint 9, weil `eslint-config-next` 16.3 (eslint-plugin-react) noch nicht mit ESLint 10 läuft. Wechseln, sobald unterstützt (nur Entwicklungswerkzeug, nicht auf dem Gerät).
 - Backup-Festplatten einhängen (USB) geht noch nicht über die Oberfläche – braucht root (`lion-helper`). Ebenso Netz-Ziele (SFTP/S3) und eine komplette Wiederherstellung auf neuer Hardware per Assistent.
 - Oberfläche wird auf dem Gerät gebaut (~20 s, ~570 MB vorübergehend). Ab dem ersten Release fertige Dateien ausliefern.
+- Home Assistant: Auto-Suche (mDNS) und Zigbee/Z-Wave-Sticks bräuchten Host-Netz bzw. Geräte. Später als eigene Stufe „vollzugriff“ mit ausdrücklicher Zustimmung prüfen.
+- Medienordner gehört UID 1000 (Benutzer im FileBrowser-Image). Ändert sich das Image, muss der Besitzer mitziehen. Freigabe per SMB ins Heimnetz fehlt noch.
+- Große Apps (Immich, Ollama) brauchen viel RAM. Die Oberfläche sollte vor der Installation warnen, wenn `ram_min_mb` über dem freien Speicher liegt.
 - `node:sqlite` meldet in Node 22 noch „experimental“ – beobachten; Fallback wäre better-sqlite3.

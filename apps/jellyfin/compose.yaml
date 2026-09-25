@@ -1,0 +1,14 @@
+services:
+  app:
+    image: jellyfin/jellyfin:10.11.11
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Berlin
+    ports:
+      - "127.0.0.1:${LION_APP_PORT}:8096"
+    volumes:
+      - ${LION_APP_DATA}/config:/config
+      - ${LION_APP_DATA}/cache:/cache
+      - ${LION_MEDIEN}:/medien:ro
+    security_opt:
+      - no-new-privileges:true

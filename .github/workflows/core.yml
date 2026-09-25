@@ -68,3 +68,45 @@ jobs:
         env:
           LION_DOCKER_TEST: "1"
         run: npx vitest run test/backup.integration.test.ts
+
+  vorlagen:
+    name: App-Vorlage „${{ matrix.app }}“ wirklich installieren
+    needs: pruefen
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - actual
+          - audiobookshelf
+          - filebrowser
+          - home-assistant
+          - immich
+          - jellyfin
+          - mealie
+          - navidrome
+          - nextcloud
+          - ollama
+          - paperless-ngx
+          - stirling-pdf
+          - uptime-kuma
+          - vaultwarden
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - uses: actions/checkout@v4
+      - name: Platz für große Images schaffen
+        working-directory: /
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL && df -h /
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: core/package-lock.json
+      - run: npm ci
+      - name: Installieren, Weboberfläche prüfen, Protokoll lesen, entfernen
+        env:
+          LION_APP_TEST: ${{ matrix.app }}
+        run: npx vitest run test/vorlage.integration.test.ts

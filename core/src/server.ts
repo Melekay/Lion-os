@@ -343,6 +343,7 @@ export function baueServer(opt: ServerOptionen): FastifyInstance {
     const name = (req: FastifyRequest) => req.benutzer?.name ?? "unbekannt";
 
     app.get("/api/apps", { preHandler: benoetigtAnmeldung }, async () => ({ apps: await apps.liste() }));
+    app.get("/api/apps/:id/protokoll", { preHandler: benoetigtAnmeldung }, mitFehlern((req) => apps.protokoll(id(req)), 200));
     app.post("/api/apps/:id/installieren", { preHandler: benoetigtAnmeldung }, mitFehlern((req) => apps.installieren(id(req), name(req))));
     app.post("/api/apps/:id/starten", { preHandler: benoetigtAnmeldung }, mitFehlern((req) => apps.starten(id(req), name(req))));
     app.post("/api/apps/:id/stoppen", { preHandler: benoetigtAnmeldung }, mitFehlern((req) => apps.stoppen(id(req), name(req))));

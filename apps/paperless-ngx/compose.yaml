@@ -1,0 +1,33 @@
+services:
+  broker:
+    image: docker.io/valkey/valkey:9.1.2-alpine
+    restart: unless-stopped
+    volumes:
+      - warteschlange:/data
+    security_opt:
+      - no-new-privileges:true
+
+  webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:3.2.1
+    restart: unless-stopped
+    depends_on:
+      - broker
+    environment:
+      PAPERLESS_REDIS: redis://broker:6379
+      PAPERLESS_DBENGINE: sqlite
+      PAPERLESS_SECRET_KEY: ${PAPERLESS_SECRET_KEY}
+      PAPERLESS_TIME_ZONE: Europe/Berlin
+      PAPERLESS_OCR_LANGUAGE: deu+eng
+      PAPERLESS_PROXY_SSL_HEADER: '["HTTP_X_FORWARDED_PROTO", "https"]'
+      PAPERLESS_USE_X_FORWARD_HOST: "true"
+      PAPERLESS_USE_X_FORWARD_PORT: "true"
+    ports:
+      - "127.0.0.1:${LION_APP_PORT}:8000"
+    volumes:
+      - ${LION_APP_DATA}/daten:/usr/src/paperless/data
+      - ${LION_APP_DATA}/dokumente:/usr/src/paperless/media
+      - ${LION_APP_DATA}/export:/usr/src/paperless/export
+      - ${LION_APP_DATA}/eingang:/usr/src/paperless/consume
+
+volumes:
+  warteschlange:

@@ -1,0 +1,16 @@
+id: audiobookshelf
+name: Audiobookshelf
+beschreibung: Hörbücher und Podcasts mit Lesezeichen und Fortschritt – auf allen Geräten, mit eigener Handy-App.
+version: "2.36.1"
+kategorie: medien
+sicherheitsstufe: normal
+medien: lesen
+web:
+  dienst: app
+  port: 80
+ressourcen:
+  ram_min_mb: 256
+hinweise:
+  - Beim ersten Öffnen legst du das Admin-Konto an.
+  - Lege eine Bibliothek mit dem Ordner /hoerbuecher an. Hörbücher kopierst du mit „Dateien“ in den Ordner „Hörbücher“.
+  - Podcasts speichert Audiobookshelf in seinem eigenen Datenordner (/podcasts).

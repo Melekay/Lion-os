@@ -1,0 +1,31 @@
+services:
+  ollama:
+    image: ollama/ollama:0.34.4
+    restart: unless-stopped
+    volumes:
+      - modelle:/root/.ollama
+    security_opt:
+      - no-new-privileges:true
+
+  webui:
+    image: ghcr.io/open-webui/open-webui:v0.11.4
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+      ENABLE_OPENAI_API: "false"
+      DEFAULT_LOCALE: de-DE
+      ANONYMIZED_TELEMETRY: "false"
+      DO_NOT_TRACK: "true"
+      SCARF_NO_ANALYTICS: "true"
+    ports:
+      - "127.0.0.1:${LION_APP_PORT}:8080"
+    volumes:
+      - ${LION_APP_DATA}/webui:/app/backend/data
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  modelle:

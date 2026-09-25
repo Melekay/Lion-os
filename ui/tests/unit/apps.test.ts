@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aktionen, besteAdresse, beschaeftigt, kategorieText, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
+import { aktionen, besteAdresse, beschaeftigt, kategorien, kategorieText, medienText, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
 import type { AppAnsicht, AppStatus } from "@/lib/typen";
 
 const app = (status?: AppStatus): AppAnsicht => ({
@@ -29,9 +29,10 @@ describe("App-Status", () => {
 
   it("zeigt nur sinnvolle Aktionen", () => {
     expect(aktionen(app())).toEqual(["installieren"]);
-    expect(aktionen(app("laeuft"))).toEqual(["oeffnen", "stoppen", "entfernen"]);
-    expect(aktionen(app("gestoppt"))).toEqual(["starten", "entfernen"]);
-    expect(aktionen(app("fehler"))).toEqual(["starten", "entfernen"]);
+    expect(aktionen(app("laeuft"))).toEqual(["oeffnen", "stoppen", "protokoll", "entfernen"]);
+    expect(aktionen(app("teilweise"))).toEqual(["oeffnen", "starten", "stoppen", "protokoll", "entfernen"]);
+    expect(aktionen(app("gestoppt"))).toEqual(["starten", "protokoll", "entfernen"]);
+    expect(aktionen(app("fehler"))).toEqual(["starten", "protokoll", "entfernen"]);
     expect(aktionen(app("installiere"))).toEqual([]);
     expect(aktionen(app("entferne"))).toEqual([]);
   });
@@ -62,5 +63,18 @@ describe("Texte", () => {
   it("Kategorien werden lesbar", () => {
     expect(kategorieText("ueberwachung")).toBe("Überwachung");
     expect(kategorieText("neu")).toBe("neu");
+    expect(kategorieText("ki")).toBe("KI");
+  });
+
+  it("Kategorien für den Filter: ohne Doppelte, alphabetisch nach Anzeigename", () => {
+    const mit = (kategorie: string) => ({ ...app(), kategorie });
+    expect(kategorien([mit("medien"), mit("ki"), mit("medien"), mit("dateien")])).toEqual(["dateien", "ki", "medien"]);
+  });
+
+  it("Medienordner-Hinweis nur für Apps mit Zugriff", () => {
+    expect(medienText("lesen")).toMatch(/nur lesen/);
+    expect(medienText("schreiben")).toMatch(/Verwaltet/);
+    expect(medienText("keine")).toBeNull();
+    expect(medienText(undefined)).toBeNull();
   });
 });

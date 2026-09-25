@@ -1,0 +1,17 @@
+id: paperless-ngx
+name: Paperless-ngx
+beschreibung: Scannt, erkennt und sortiert deine Papierdokumente. Rechnungen, Verträge und Briefe findest du per Volltextsuche wieder.
+version: "3.2.1"
+kategorie: dokumente
+sicherheitsstufe: sensibel
+web:
+  dienst: webserver
+  port: 8000
+geheimnisse:
+  - PAPERLESS_SECRET_KEY
+ressourcen:
+  ram_min_mb: 2048
+hinweise:
+  - Beim ersten Öffnen legst du das Admin-Konto an.
+  - Texterkennung ist für Deutsch und Englisch eingestellt.
+  - Dateien im Ordner „eingang“ (im Datenordner) werden automatisch übernommen und danach dort gelöscht.

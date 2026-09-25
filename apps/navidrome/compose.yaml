@@ -1,0 +1,16 @@
+services:
+  app:
+    image: deluan/navidrome:0.64.2
+    restart: unless-stopped
+    environment:
+      ND_MUSICFOLDER: /musik
+      ND_DATAFOLDER: /data
+      ND_SCANSCHEDULE: 1h
+      ND_DEFAULTLANGUAGE: de
+    ports:
+      - "127.0.0.1:${LION_APP_PORT}:4533"
+    volumes:
+      - ${LION_APP_DATA}/data:/data
+      - ${LION_MEDIEN}/Musik:/musik:ro
+    security_opt:
+      - no-new-privileges:true

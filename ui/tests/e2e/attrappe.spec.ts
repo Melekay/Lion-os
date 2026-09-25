@@ -251,6 +251,58 @@ test.describe("Apps", () => {
     await expect(karte.getByRole("button", { name: "Entfernen" })).toBeVisible();
   });
 
+  test("Kategorie-Filter zeigt nur passende Apps; „Installiert“ erscheint erst mit installierten Apps", async ({ page }) => {
+    api.app("jellyfin").installiert = { status: "laeuft", meldung: null, adressen: ["https://localhost:8102"], datenordner: "/srv/lion/apps/jellyfin" };
+    await page.goto("/apps/");
+    const filter = page.getByRole("group", { name: "Nach Kategorie filtern" });
+    await expect(filter.getByRole("button", { name: "Alle (4)" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("article")).toHaveCount(4);
+
+    await filter.getByRole("button", { name: "Medien" }).click();
+    await expect(filter.getByRole("button", { name: "Medien" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("article")).toHaveCount(1);
+    await expect(page.getByRole("article")).toContainText("Jellyfin");
+
+    await filter.getByRole("button", { name: "Installiert (1)" }).click();
+    await expect(page.getByRole("article")).toHaveCount(1);
+    await barrierefrei(page);
+
+    await filter.getByRole("button", { name: /^Alle/ }).click();
+    await expect(page.getByRole("article")).toHaveCount(4);
+  });
+
+  test("Medien-Apps zeigen ihren Zugriff auf den Medienordner", async ({ page }) => {
+    await page.goto("/apps/");
+    await expect(page.getByRole("article").filter({ hasText: "Jellyfin" })).toContainText("Liest den Medienordner (nur lesen)");
+    await expect(page.getByRole("article").filter({ hasText: "Dateimanager" })).toContainText("Verwaltet den Medienordner");
+    await expect(page.getByRole("article").filter({ hasText: "Uptime Kuma" })).not.toContainText("Medienordner");
+  });
+
+  test("Protokoll-Dialog zeigt das Start-Passwort aus dem App-Protokoll", async ({ page }) => {
+    api.app("filebrowser").installiert = { status: "laeuft", meldung: null, adressen: ["https://localhost:8101"], datenordner: "/srv/lion/apps/filebrowser" };
+    await page.goto("/apps/");
+    const karte = page.getByRole("article").filter({ hasText: "Dateimanager" });
+    await karte.getByRole("button", { name: "Protokoll" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "Protokoll: Dateien" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("log")).toContainText("randomly generated password: Xy7-geheim");
+    await barrierefrei(page);
+
+    api.appProtokolle.filebrowser = [];
+    await dialog.getByRole("button", { name: "Aktualisieren" }).click();
+    await expect(dialog.getByRole("log")).toContainText("Noch keine Einträge.");
+
+    await dialog.getByRole("button", { name: "Schließen" }).click();
+    await expect(dialog).toBeHidden();
+    expect(api.anfragen.filter((a) => a.pfad === "/api/apps/filebrowser/protokoll" && a.methode === "GET")).toHaveLength(2);
+  });
+
+  test("nicht installierte Apps haben keinen Protokoll-Knopf", async ({ page }) => {
+    await page.goto("/apps/");
+    await expect(page.getByRole("article").filter({ hasText: "Jellyfin" }).getByRole("button", { name: "Protokoll" })).toHaveCount(0);
+  });
+
   test("sensible Apps sind gekennzeichnet", async ({ page }) => {
     await page.goto("/apps/");
     await expect(page.getByRole("article").filter({ hasText: "Vaultwarden" })).toContainText("Sensible Daten");
