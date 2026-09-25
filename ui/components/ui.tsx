@@ -140,9 +140,9 @@ export function StatusPille({ ton, children }: { ton: Ton; children: ReactNode }
 }
 
 const BALKEN: Record<"gruen" | "gelb" | "rot", string> = {
-  gruen: "from-emerald-400 to-cyan-400",
-  gelb: "from-amber-300 to-orange-500",
-  rot: "from-rose-400 to-red-500",
+  gruen: "from-emerald-400 to-cyan-400 shadow-[0_0_14px_rgba(34,211,238,0.55)]",
+  gelb: "from-amber-300 to-orange-500 shadow-[0_0_14px_rgba(251,146,60,0.55)]",
+  rot: "from-rose-400 to-red-500 shadow-[0_0_14px_rgba(244,63,94,0.6)]",
 };
 
 /** Füllstand mit Ampelfarbe (Gold = normal, Gelb/Rot = Grenze nahe). */
@@ -155,9 +155,57 @@ export function Messbalken({ anteil, ton, label }: { anteil: number; ton: "gruen
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={prozent}
-      className="h-2 w-full overflow-hidden rounded-full bg-flaeche-3"
+      className="h-2.5 w-full overflow-hidden rounded-full bg-flaeche-3"
     >
       <div className={`h-full rounded-full bg-linear-to-r transition-[width] duration-700 ${BALKEN[ton]}`} style={{ width: `${Math.max(prozent, 2)}%` }} />
+    </div>
+  );
+}
+
+/**
+ * Kennzahl-Kachel wie bei Homarr: kleine Überschrift, große Zahl, leuchtender Balken, Details als Chips.
+ * Die Zahl steht ohne Einheit groß da, die Einheit kleiner daneben.
+ */
+export function Kennzahl({
+  titel,
+  wert,
+  einheit,
+  anteil,
+  ton,
+  label,
+  chips = [],
+  rechts,
+}: {
+  titel: string;
+  wert: string;
+  einheit?: string;
+  anteil: number;
+  ton: "gruen" | "gelb" | "rot";
+  /** Name des Balkens für Screenreader, z. B. „Arbeitsspeicher belegt“. */
+  label: string;
+  chips?: string[];
+  rechts?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-feld border border-linie bg-flaeche-2 p-4">
+      <div className="flex min-h-6 items-center justify-between gap-2">
+        <p className="truncate text-xs font-semibold uppercase tracking-wider text-gedaempft">{titel}</p>
+        {rechts}
+      </div>
+      <p className="font-display text-4xl leading-none font-bold tracking-tight tabular-nums">
+        {wert}
+        {einheit && <span className="text-lg font-semibold text-gedaempft"> {einheit}</span>}
+      </p>
+      <Messbalken anteil={anteil} ton={ton} label={label} />
+      {chips.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5">
+          {chips.map((c) => (
+            <li key={c} className="rounded-full border border-linie bg-grund/40 px-2.5 py-1 text-xs font-semibold tabular-nums">
+              {c}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

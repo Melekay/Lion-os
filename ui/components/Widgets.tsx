@@ -1,13 +1,16 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ChevronRight, HardDrive } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useJetzt } from "@/lib/browser";
 import { aktionText, AMPEL_TEXT, dauer, datumLang, ERGEBNIS_TEXT, kennzahlen, speicherName, speicherZustand, uhrzeit, zahl, zeitpunkt } from "@/lib/format";
 import { linie, rate, type Verlauf } from "@/lib/netz";
 import type { Ampel, AuditEintrag, Systemstatus } from "@/lib/typen";
-import { Messbalken, StatusPille } from "./ui";
+import { Kennzahl, StatusPille } from "./ui";
+
+/** „24 %“ → „24“, „48 °C“ → „48“ – die Einheit steht in der Kachel kleiner daneben. */
+const ohneEinheit = (text: string) => text.replace(/\s*(%|°C)$/, "");
 
 /* ---------------------------------------------------------------------------
    Widgets der Startseite (linke Spalte) – bewusst schlicht wie bei ZimaOS:
@@ -42,54 +45,44 @@ export function UhrWidget() {
   );
 }
 
-const RING_FARBE: Record<Ampel, string> = { gruen: "stroke-cyan-400", gelb: "stroke-amber-400", rot: "stroke-rose-400" };
-
-/** Ring-Anzeige wie bei ZimaOS, mit role="meter" für Screenreader. */
-function Ring({ anteil, ton, wert, name, label, unter }: { anteil: number; ton: Ampel; wert: string; name: string; label: string; unter: string }) {
-  const r = 34;
-  const umfang = 2 * Math.PI * r;
-  const bogen = umfang * 0.75; // offener Ring (270°), unten offen
-  const prozent = Math.round(anteil * 100);
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div
-        role="meter"
-        aria-label={label}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={prozent}
-        className="relative h-24 w-24"
-      >
-        <svg viewBox="0 0 80 80" className="h-full w-full rotate-[135deg]" aria-hidden="true">
-          <circle cx="40" cy="40" r={r} fill="none" strokeWidth="7" strokeLinecap="round" className="stroke-flaeche-3" strokeDasharray={`${bogen} ${umfang}`} />
-          <circle
-            cx="40"
-            cy="40"
-            r={r}
-            fill="none"
-            strokeWidth="7"
-            strokeLinecap="round"
-            className={`${RING_FARBE[ton]} transition-[stroke-dasharray] duration-700`}
-            strokeDasharray={`${Math.max(bogen * anteil, 0.5)} ${umfang}`}
-          />
-        </svg>
-        <span className="absolute inset-0 grid place-items-center pt-1 font-display text-2xl font-semibold tabular-nums">{wert}</span>
-      </div>
-      <span className="text-sm font-semibold">{name}</span>
-      <span className="text-xs text-gedaempft">{unter}</span>
-    </div>
-  );
-}
-
 const AMPEL_PUNKT: Record<Ampel, string> = { gruen: "bg-gruen", gelb: "bg-gelb", rot: "bg-rot" };
 
 export function SystemWidget({ s }: { s: Systemstatus }) {
   const k = kennzahlen(s);
   return (
     <Widget titel="System">
-      <div className="grid grid-cols-2 gap-2">
-        <Ring anteil={k.cpu.anteil} ton={k.cpu.ton} wert={k.cpu.wert.replace(" ", "")} name="CPU" label="Prozessor-Auslastung" unter={k.temperatur ? k.temperatur.wert : `${s.cpuKerne} Kerne`} />
-        <Ring anteil={k.ram.anteil} ton={k.ram.ton} wert={k.ram.wert.replace(" ", "")} name="RAM" label="Arbeitsspeicher belegt" unter={`${zahl(k.ramGesamtGb, 0)} GB`} />
+      <div className="grid grid-cols-2 gap-3">
+        <Kennzahl
+          titel="CPU"
+          wert={ohneEinheit(k.cpu.wert)}
+          einheit="%"
+          anteil={k.cpu.anteil}
+          ton={k.cpu.ton}
+          label="Prozessor-Auslastung"
+          chips={[`${s.cpuKerne} ${s.cpuKerne === 1 ? "Kern" : "Kerne"}`]}
+        />
+        <Kennzahl
+          titel="RAM"
+          wert={ohneEinheit(k.ram.wert)}
+          einheit="%"
+          anteil={k.ram.anteil}
+          ton={k.ram.ton}
+          label="Arbeitsspeicher belegt"
+          chips={[`${zahl(k.ramGesamtGb, 0)} GB`]}
+        />
+        {k.temperatur && (
+          <div className="col-span-2">
+            <Kennzahl
+              titel="Temperatur"
+              wert={ohneEinheit(k.temperatur.wert)}
+              einheit="°C"
+              anteil={k.temperatur.anteil}
+              ton={k.temperatur.ton}
+              label="Temperatur"
+              chips={[k.temperatur.detail]}
+            />
+          </div>
+        )}
       </div>
       <div className="mt-4 space-y-2 border-t border-linie pt-4 text-sm">
         <p className="flex items-center gap-2 font-semibold">
@@ -113,26 +106,19 @@ export function SpeicherWidget({ s }: { s: Systemstatus }) {
   const k = kennzahlen(s);
   return (
     <Widget titel="Speicher">
-      <ul className="space-y-5">
+      <ul className="space-y-3">
         {k.speicher.map((sp) => (
-          <li key={sp.pfad} className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-linear-to-br from-stone-300 to-stone-500 shadow-karte" aria-hidden="true">
-                <HardDrive className="h-5.5 w-5.5 text-stone-900" />
-              </span>
-              <div className="min-w-0 flex-1 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="truncate font-semibold" title={sp.pfad}>
-                    {speicherName(sp.pfad)}
-                  </span>
-                  <StatusPille ton={ZUSTAND_TON[sp.ton]}>{speicherZustand(sp.ton)}</StatusPille>
-                </div>
-                <p className="mt-1 tabular-nums">
-                  {zahl(sp.belegtGb)} von {zahl(sp.gesamtGb)} GB belegt
-                </p>
-              </div>
-            </div>
-            <Messbalken anteil={sp.anteil} ton={sp.ton} label={`Speicher ${speicherName(sp.pfad)} belegt`} />
+          <li key={sp.pfad}>
+            <Kennzahl
+              titel={speicherName(sp.pfad)}
+              wert={ohneEinheit(sp.wert)}
+              einheit="%"
+              anteil={sp.anteil}
+              ton={sp.ton}
+              label={`Speicher ${speicherName(sp.pfad)} belegt`}
+              rechts={<StatusPille ton={ZUSTAND_TON[sp.ton]}>{speicherZustand(sp.ton)}</StatusPille>}
+              chips={[`${zahl(sp.gesamtGb - sp.belegtGb)} GB frei`, `${zahl(sp.gesamtGb)} GB gesamt`]}
+            />
           </li>
         ))}
       </ul>
