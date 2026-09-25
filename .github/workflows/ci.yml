@@ -1,0 +1,79 @@
+# Prüft den Installer bei jedem Pull Request und jedem Push auf main.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installer-pruefen:
+    name: Installer – shellcheck + Unit-Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Werkzeuge installieren
+        run: sudo apt-get update && sudo apt-get install -y shellcheck bats
+      - name: shellcheck
+        run: shellcheck installer/install.sh
+      - name: Unit-Tests (bats)
+        run: bats installer/tests
+
+  installer-installation:
+    name: Installer – echte Installation
+    needs: installer-pruefen
+    # GitHub bietet keine Debian-VMs. Ubuntu hat systemd und Docker bereits an Bord,
+    # deshalb wird hier alles außer der Docker-Installation echt durchlaufen.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LION_ALLOW_UNSUPPORTED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probelauf
+        run: sudo -E ./installer/install.sh --dry-run
+
+      - name: Installation
+        run: sudo -E ./installer/install.sh --yes
+
+      - name: Lion OS antwortet per HTTPS
+        run: curl -skf https://localhost/ | grep -q "Installation erfolgreich"
+
+      - name: HTTP leitet auf HTTPS um
+        run: |
+          code="$(curl -s -o /dev/null -w '%{http_code}' http://localhost/)"
+          test "$code" = "308"
+
+      - name: Dienst läuft, Konfiguration ist geschützt
+        run: |
+          systemctl is-active --quiet lion.service
+          test "$(sudo stat -c %a /etc/lion/lion.env)" = "600"
+          sudo docker inspect -f '{{.State.Running}}' lion-caddy | grep -q true
+
+      - name: Zweiter Lauf ist idempotent (Geheimnis bleibt erhalten)
+        run: |
+          vorher="$(sudo sha256sum /etc/lion/lion.env)"
+          sudo -E ./installer/install.sh --yes
+          test "$vorher" = "$(sudo sha256sum /etc/lion/lion.env)"
+          curl -skf https://localhost/ | grep -q "Installation erfolgreich"
+
+      - name: Nach Neustart des Dienstes wieder erreichbar
+        run: |
+          sudo systemctl restart lion.service
+          for _ in $(seq 1 30); do curl -skf https://localhost/ >/dev/null && exit 0; sleep 1; done
+          exit 1
+
+      - name: Protokolle bei Fehler
+        if: failure()
+        run: |
+          sudo systemctl status lion.service --no-pager || true
+          sudo docker compose -f /opt/lion/stack/compose.yaml logs --no-color || true
