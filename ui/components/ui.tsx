@@ -97,11 +97,22 @@ const HINWEIS = {
   info: { klasse: "border-linie-hell bg-flaeche-2", icon: Info, farbe: "text-gold" },
 } as const;
 
-export function Hinweis({ ton = "info", titel, children }: { ton?: keyof typeof HINWEIS; titel?: string; children?: ReactNode }) {
+/** `rolle`: Standard ist eine Live-Meldung (alert/status). Für Hinweise, die schon beim Laden dastehen, „note“ nehmen. */
+export function Hinweis({
+  ton = "info",
+  titel,
+  rolle,
+  children,
+}: {
+  ton?: keyof typeof HINWEIS;
+  titel?: string;
+  rolle?: "alert" | "status" | "note";
+  children?: ReactNode;
+}) {
   const h = HINWEIS[ton];
   const Icon = h.icon;
   return (
-    <div role={ton === "rot" ? "alert" : "status"} className={`flex gap-3 rounded-feld border p-4 text-sm ${h.klasse}`}>
+    <div role={rolle ?? (ton === "rot" ? "alert" : "status")} className={`flex gap-3 rounded-feld border p-4 text-sm ${h.klasse}`}>
       <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${h.farbe}`} aria-hidden="true" />
       <div className="space-y-1">
         {titel && <p className="font-semibold text-text">{titel}</p>}

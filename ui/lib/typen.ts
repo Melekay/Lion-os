@@ -34,6 +34,8 @@ export type AppAnsicht = {
   hinweise: string[];
   /** Zugriff auf den gemeinsamen Medienordner. */
   medien?: "keine" | "lesen" | "schreiben";
+  /** Empfohlener freier Arbeitsspeicher in MB. */
+  ramMinMb?: number;
   installiert: null | {
     status: AppStatus;
     meldung: string | null;

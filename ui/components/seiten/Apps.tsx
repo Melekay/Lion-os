@@ -12,6 +12,8 @@ import { Hinweis, Lader, SeitenKopf } from "../ui";
 export function Apps() {
   // Solange eine App installiert oder entfernt wird: alle 2 s nachfragen, sonst alle 15 s.
   const { daten, fehler, neuLaden } = useAbfrage(lion.apps, (d) => (d && beschaeftigt(d.apps) ? 2_000 : 15_000));
+  // Für die RAM-Warnung vor der Installation. Fehlt der Wert, gibt es einfach keine Warnung.
+  const { daten: system } = useAbfrage(lion.system, 30_000);
   const hostname = useHostname();
   const [filter, setFilter] = useState<string>("alle");
   const liste = daten?.apps ?? [];
@@ -61,7 +63,7 @@ export function Apps() {
       {daten && (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {sichtbar.map((a) => (
-            <AppKarte key={a.id} app={a} hostname={hostname} onGeaendert={neuLaden} />
+            <AppKarte key={a.id} app={a} hostname={hostname} system={system} onGeaendert={neuLaden} />
           ))}
         </div>
       )}

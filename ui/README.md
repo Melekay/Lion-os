@@ -27,6 +27,17 @@ LION_API=http://127.0.0.1:8080 npm run vorschau   # out/ + /api-Weiterleitung, w
 
 `npm run dev` zeigt nur die Oberfläche; die API gibt es dort nicht (statischer Export kann keine Weiterleitungen).
 
+## Demo (ohne lion-core)
+
+```bash
+npm run demo:build   # → demo/dist/index.html
+```
+
+Eine einzige HTML-Datei mit derselben Oberfläche und Beispieldaten im Browser.
+Sie läuft ohne Server, auch direkt per Doppelklick. Nichts wird wirklich installiert.
+Anmelden geht mit jedem Passwort. „Demo zurücksetzen“ stellt den Anfangszustand wieder her.
+Die Apps kommen aus `apps/<id>/lion-app.yaml`. Der Build braucht daher `core/node_modules` (für `yaml`).
+
 ## Prüfen
 
 | Befehl | Was |

@@ -30,6 +30,8 @@ export type AppAnsicht = {
   sicherheitsstufe: string;
   hinweise: string[];
   medien: "keine" | "lesen" | "schreiben";
+  /** Empfohlener freier Arbeitsspeicher in MB (aus lion-app.yaml). */
+  ramMinMb: number;
   installiert: null | {
     status: GespeicherterStatus | AppStatus;
     meldung: string | null;
@@ -252,6 +254,7 @@ export class AppVerwaltung {
           sicherheitsstufe: m.sicherheitsstufe,
           hinweise: m.hinweise,
           medien: m.medien,
+          ramMinMb: m.ressourcen.ram_min_mb,
           installiert,
         };
       }),

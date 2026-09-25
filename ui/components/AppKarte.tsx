@@ -1,26 +1,40 @@
 "use client";
 
-import { ExternalLink, Film, FolderOpen, Play, Plus, ScrollText, ShieldAlert, Square, Trash2 } from "lucide-react";
+import { ExternalLink, Film, FolderOpen, MemoryStick, Play, Plus, ScrollText, ShieldAlert, Square, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { lion } from "@/lib/api";
-import { aktionen, besteAdresse, kategorieText, medienText, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
-import type { AppAnsicht } from "@/lib/typen";
+import { aktionen, besteAdresse, kategorieText, medienText, ramText, ramWarnung, sicherheitsHinweis, statusAnzeige } from "@/lib/apps";
+import type { AppAnsicht, Systemstatus } from "@/lib/typen";
 import { AppSymbol } from "./AppSymbol";
 import { EntfernenDialog } from "./EntfernenDialog";
 import { ProtokollDialog } from "./ProtokollDialog";
 import { Hinweis, Karte, Knopf, StatusPille } from "./ui";
 
-export function AppKarte({ app, hostname, onGeaendert }: { app: AppAnsicht; hostname: string; onGeaendert: () => void }) {
+export function AppKarte({
+  app,
+  hostname,
+  system,
+  onGeaendert,
+}: {
+  app: AppAnsicht;
+  hostname: string;
+  /** Aktuelle Messwerte für die RAM-Warnung (fehlen sie, gibt es keine Warnung). */
+  system?: Systemstatus | null;
+  onGeaendert: () => void;
+}) {
   const [sendet, setSendet] = useState<string | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [dialog, setDialog] = useState(false);
   const [protokoll, setProtokoll] = useState(false);
+  const [ramBestaetigen, setRamBestaetigen] = useState(false);
 
   const status = statusAnzeige(app);
   const knoepfe = aktionen(app);
   const stufe = sicherheitsHinweis(app.sicherheitsstufe);
   const adresse = app.installiert ? besteAdresse(app.installiert.adressen, hostname) : null;
   const medien = medienText(app.medien);
+  const ram = app.installiert ? null : ramWarnung(app.ramMinMb, system);
+  const installieren = () => ausfuehren("installieren", () => lion.appAktion(app.id, "installieren"));
 
   async function ausfuehren(name: string, aufruf: () => Promise<unknown>) {
     setSendet(name);
@@ -28,6 +42,7 @@ export function AppKarte({ app, hostname, onGeaendert }: { app: AppAnsicht; host
     try {
       await aufruf();
       setDialog(false);
+      setRamBestaetigen(false);
       onGeaendert();
     } catch (e) {
       setFehler(e instanceof Error ? e.message : "Unbekannter Fehler.");
@@ -85,6 +100,19 @@ export function AppKarte({ app, hostname, onGeaendert }: { app: AppAnsicht; host
         </details>
       )}
 
+      {!app.installiert && ram && (
+        <Hinweis ton={ram.stufe} titel={ram.titel} rolle="note">
+          {ram.text}
+        </Hinweis>
+      )}
+
+      {app.ramMinMb ? (
+        <p className="flex items-center gap-2 text-xs text-gedaempft">
+          <MemoryStick className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>Empfohlen: ab {ramText(app.ramMinMb)} freier Arbeitsspeicher</span>
+        </p>
+      ) : null}
+
       {medien && (
         <p className="flex items-center gap-2 text-xs text-gedaempft">
           <Film className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -102,10 +130,25 @@ export function AppKarte({ app, hostname, onGeaendert }: { app: AppAnsicht; host
 
       {knoepfe.length > 0 && (
         <div className="mt-auto flex flex-wrap gap-2 border-t border-linie pt-5">
-          {knoepfe.includes("installieren") && (
-            <Knopf laedt={sendet === "installieren"} onClick={() => ausfuehren("installieren", () => lion.appAktion(app.id, "installieren"))}>
+          {knoepfe.includes("installieren") && !ramBestaetigen && (
+            <Knopf laedt={sendet === "installieren"} onClick={() => (ram ? setRamBestaetigen(true) : installieren())}>
               <Plus className="h-4 w-4" aria-hidden="true" /> Installieren
             </Knopf>
+          )}
+          {knoepfe.includes("installieren") && ramBestaetigen && (
+            <div className="w-full space-y-3" role="group" aria-label="Installation trotz Warnung bestätigen">
+              <p className="text-sm font-semibold">
+                {ram?.stufe === "rot" ? "Wirklich installieren? Die App wird auf diesem Gerät kaum laufen." : "Trotz knappem Arbeitsspeicher installieren?"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Knopf art={ram?.stufe === "rot" ? "gefahr" : "gold"} laedt={sendet === "installieren"} onClick={installieren}>
+                  <Plus className="h-4 w-4" aria-hidden="true" /> Trotzdem installieren
+                </Knopf>
+                <Knopf art="rahmen" onClick={() => setRamBestaetigen(false)}>
+                  Abbrechen
+                </Knopf>
+              </div>
+            </div>
           )}
           {knoepfe.includes("oeffnen") && adresse && (
             <a

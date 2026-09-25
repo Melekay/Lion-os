@@ -303,6 +303,43 @@ test.describe("Apps", () => {
     await expect(page.getByRole("article").filter({ hasText: "Jellyfin" }).getByRole("button", { name: "Protokoll" })).toHaveCount(0);
   });
 
+  test("RAM-Warnung: gelb bei knappem, rot bei zu wenig Speicher; Installation erst nach Bestätigung", async ({ page }) => {
+    api.system = { ...api.system, ramGesamtMb: 8192, ramFreiMb: 2048 };
+    api.app("jellyfin").ramMinMb = 4096;
+    api.app("filebrowser").ramMinMb = 16384;
+    api.app("uptime-kuma").ramMinMb = 256;
+    await page.goto("/apps/");
+
+    const knapp = page.getByRole("article").filter({ hasText: "Jellyfin" });
+    await expect(knapp.getByRole("note")).toContainText("Arbeitsspeicher knapp");
+    await expect(knapp.getByRole("note")).toContainText("frei sind gerade 2 GB");
+    await expect(knapp).toContainText("Empfohlen: ab 4 GB freier Arbeitsspeicher");
+
+    const zuWenig = page.getByRole("article").filter({ hasText: "Dateimanager" });
+    await expect(zuWenig.getByRole("note")).toContainText("Zu wenig Arbeitsspeicher");
+    await expect(page.getByRole("article").filter({ hasText: "Uptime Kuma" }).getByRole("note")).toHaveCount(0);
+    await barrierefrei(page);
+
+    // Erster Klick fragt nur nach, Abbrechen sendet nichts.
+    await knapp.getByRole("button", { name: "Installieren" }).click();
+    await expect(knapp.getByRole("group", { name: "Installation trotz Warnung bestätigen" })).toBeVisible();
+    await knapp.getByRole("button", { name: "Abbrechen" }).click();
+    expect(api.anfragen.some((a) => a.pfad === "/api/apps/jellyfin/installieren")).toBe(false);
+
+    await knapp.getByRole("button", { name: "Installieren" }).click();
+    await knapp.getByRole("button", { name: "Trotzdem installieren" }).click();
+    await expect(knapp.getByText("Läuft", { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(knapp.getByRole("note")).toHaveCount(0);
+  });
+
+  test("ohne Warnung installiert ein Klick sofort", async ({ page }) => {
+    api.app("uptime-kuma").ramMinMb = 256;
+    await page.goto("/apps/");
+    const karte = page.getByRole("article").filter({ hasText: "Uptime Kuma" });
+    await karte.getByRole("button", { name: "Installieren" }).click();
+    await expect(karte.getByText("Wird installiert …")).toBeVisible();
+  });
+
   test("sensible Apps sind gekennzeichnet", async ({ page }) => {
     await page.goto("/apps/");
     await expect(page.getByRole("article").filter({ hasText: "Vaultwarden" })).toContainText("Sensible Daten");
