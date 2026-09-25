@@ -66,6 +66,8 @@ async function aufbau(jetzt = new Date("2026-09-25T10:00:00")) {
   const restic = new FakeRestic();
   const apps = new FakeApps();
   const uhr = { jetzt };
+  const bereitgestellt: string[] = [];
+  let bereitstellenFehler: string | null = null;
   const backup = new BackupVerwaltung({
     db,
     restic,
@@ -76,8 +78,15 @@ async function aufbau(jetzt = new Date("2026-09-25T10:00:00")) {
       return p;
     },
     jetzt: () => uhr.jetzt,
+    zielBereitstellen: async (ziel) => {
+      bereitgestellt.push(ziel);
+      if (bereitstellenFehler) throw new Error(bereitstellenFehler);
+    },
   });
-  return { basis, pfade, db, restic, apps, backup, uhr };
+  return {
+    basis, pfade, db, restic, apps, backup, uhr, bereitgestellt,
+    setzeBereitstellenFehler: (f: string | null) => (bereitstellenFehler = f),
+  };
 }
 
 describe("Einrichten", () => {
@@ -147,6 +156,27 @@ describe("Sichern", () => {
     expect(apps.protokoll.filter((p) => p.startsWith("fortsetzen"))).toHaveLength(2);
     expect(backup.status().letzter).toMatchObject({ status: "fehler", meldung: expect.stringContaining("schief") });
     expect(backup.hinweis()).toMatchObject({ stufe: "rot", text: expect.stringContaining("fehlgeschlagen") });
+  });
+
+  it("stellt das Ziel vor dem Sichern bereit (z. B. USB-Platte wieder einhängen)", async () => {
+    const { backup, bereitgestellt } = await aufbau();
+    await backup.einrichten({ ziel: "/mnt/usb", zeit: "03:00" }, "admin");
+    backup.sichern("admin");
+    await backup.warte();
+    expect(bereitgestellt).toContain("/mnt/usb");
+    expect(backup.status().letzter?.status).toBe("erfolg");
+  });
+
+  it("fehlt der Datenträger, schlägt die Sicherung mit klarer Meldung fehl – ohne Apps anzuhalten", async () => {
+    const { backup, apps, restic, setzeBereitstellenFehler } = await aufbau();
+    await backup.einrichten({ ziel: "/mnt/usb", zeit: "03:00" }, "admin");
+    const vorher = restic.befehle().length;
+    setzeBereitstellenFehler("Diesen Datenträger gibt es nicht (mehr). Ist er angeschlossen?");
+    backup.sichern("admin");
+    await backup.warte();
+    expect(backup.status().letzter).toMatchObject({ status: "fehler", meldung: expect.stringMatching(/angeschlossen/) });
+    expect(restic.befehle().length).toBe(vorher);
+    expect(apps.protokoll.filter((a) => a.startsWith("anhalten"))).toEqual([]);
   });
 
   it("nur eine Aktion gleichzeitig; ohne Ziel nicht möglich", async () => {

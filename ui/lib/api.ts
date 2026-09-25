@@ -1,4 +1,4 @@
-import type { AppAnsicht, AppRessourcen, AuditEintrag, BackupStatus, EinstellungenAntwort, SetupStatus, Sicherung, SitzungsAnsicht, Systemstatus } from "./typen";
+import type { AppAnsicht, AppRessourcen, Datentraeger, AuditEintrag, BackupStatus, EinstellungenAntwort, SetupStatus, Sicherung, SitzungsAnsicht, Systemstatus } from "./typen";
 
 /** Fehler einer API-Anfrage mit einer Meldung, die man direkt anzeigen kann. */
 export class ApiFehler extends Error {
@@ -88,6 +88,9 @@ export const lion = {
   einstellungenSpeichern: (d: { boxName: string }) => api<{ boxName: string }>("/api/einstellungen", { daten: d }),
   hintergrundHochladen: (foto: Blob) => api<{ hintergrundFoto: string }>("/api/hintergrund", { roh: foto }),
   hintergrundEntfernen: () => api<{ ok: true }>("/api/hintergrund/entfernen", { methode: "POST" }),
+  datentraeger: () => api<{ datentraeger: Datentraeger[] }>("/api/datentraeger"),
+  datentraegerEinhaengen: (uuid: string) => api<{ einhaengepunkt: string; backupOrdner: string }>("/api/datentraeger/einhaengen", { daten: { uuid } }),
+  datentraegerAushaengen: (uuid: string) => api<{ ok: true }>("/api/datentraeger/aushaengen", { daten: { uuid } }),
   backup: () => api<BackupStatus>("/api/backup"),
   backupEinrichten: (d: { ziel: string; zeit: string }) => api<{ schluesselNeu: string | null; status: BackupStatus }>("/api/backup/einrichten", { daten: d }),
   backupPlan: (d: { zeit: string; aktiv: boolean }) => api<BackupStatus>("/api/backup/plan", { daten: d }),

@@ -108,6 +108,33 @@ os_release() {
   [ -z "$(ls -A "$LION_ROOT")" ]
 }
 
+# --- lion-helper -----------------------------------------------------------
+
+@test "lion-helper läuft als root mit Gruppe lion und nur CAP_SYS_ADMIN" {
+  run render_helper_unit
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"User=root"* ]]
+  [[ "$output" == *"Group=lion"* ]]
+  [[ "$output" == *"CapabilityBoundingSet=CAP_SYS_ADMIN"* ]]
+  [[ "$output" == *"ExecStart=/usr/bin/node dist/helfer/index.js"* ]]
+  [[ "$output" == *"RuntimeDirectoryMode=0750"* ]]
+  [[ "$output" == *"RestrictAddressFamilies=AF_UNIX"* ]]
+  [[ "$output" == *"IPAddressDeny=any"* ]]
+}
+
+@test "lion-helper hat keinen eigenen Mount-Namespace (Einhängungen müssen systemweit gelten)" {
+  run render_helper_unit
+  for option in ProtectSystem ProtectHome PrivateTmp PrivateDevices ProtectKernelTunables ProtectKernelModules ProtectControlGroups ProtectKernelLogs PrivateMounts; do
+    [[ "$output" != *"$option="* ]] || { echo "unerwartet: $option"; return 1; }
+  done
+}
+
+@test "lion-core startet nach lion-helper" {
+  run render_core_unit
+  [[ "$output" == *"Wants=lion.service lion-helper.service"* ]]
+  [[ "$output" == *"After=docker.service lion.service lion-helper.service"* ]]
+}
+
 # --- Medienordner ----------------------------------------------------------
 
 @test "Medienordner wird mit Unterordnern angelegt" {

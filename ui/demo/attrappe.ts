@@ -18,6 +18,8 @@ type Zustand = {
   backup: BackupStatus;
   sicherungen: Sicherung[];
   foto?: string | null;
+  /** Einhängepunkte der Beispiel-USB-Platten (uuid → Pfad) */
+  eingehaengt?: Record<string, string>;
 };
 
 const SPEICHER_SCHLUESSEL = "lion-demo-zustand-v1";
@@ -285,6 +287,28 @@ export class DemoApi {
       z.boxName = name;
       this.protokolliere("einstellungen.aendern", null);
       return antwort(200, { boxName: name });
+    }
+    if (pfad === "/api/datentraeger") {
+      const ein = z.eingehaengt ?? {};
+      return antwort(200, {
+        datentraeger: [
+          { uuid: "7c1e9a52-3b4d-4f60-9a1b-2c3d4e5f6a7b", name: "WD Elements", groesseBytes: 2_000_398_934_016, dateisystem: "ext4", geraet: "/dev/sda1" },
+          { uuid: "5E2A-91C4", name: "SANDISK", groesseBytes: 128_000_000_000, dateisystem: "exfat", geraet: "/dev/sdb1" },
+        ].map((d) => ({ ...d, eingehaengt: ein[d.uuid] ?? null, backupOrdner: `/media/lion/${d.uuid}/lion-backup` })),
+      });
+    }
+    if (pfad === "/api/datentraeger/einhaengen" || pfad === "/api/datentraeger/aushaengen") {
+      const uuid = String(body.uuid ?? "");
+      if (!/^[A-Za-z0-9-]{4,64}$/.test(uuid)) return antwort(400, { fehler: "Unbekannter Datenträger." });
+      z.eingehaengt ??= {};
+      if (pfad.endsWith("aushaengen")) {
+        delete z.eingehaengt[uuid];
+        this.protokolliere("datentraeger.aushaengen", uuid);
+        return antwort(200, { ok: true });
+      }
+      z.eingehaengt[uuid] = `/media/lion/${uuid}`;
+      this.protokolliere("datentraeger.einhaengen", uuid, "erfolg", z.eingehaengt[uuid]!);
+      return antwort(200, { einhaengepunkt: z.eingehaengt[uuid], backupOrdner: `/media/lion/${uuid}/lion-backup` });
     }
     if (pfad === "/api/hintergrund") {
       const daten = String(body.daten ?? "");

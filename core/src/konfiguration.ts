@@ -12,6 +12,7 @@ const Schema = z.object({
   LION_APPS_DATEN: z.string().default("/srv/lion/apps"),
   LION_MEDIEN: z.string().default("/srv/lion/medien"),
   LION_HINTERGRUND: z.string().default("/var/lib/lion/hintergrund.jpg"),
+  LION_HELPER_SOCKET: z.string().default("/run/lion-helper/helfer.sock"),
   LION_CADDY_APPS: z.string().default("/opt/lion/stack/apps"),
   LION_ADRESSEN: z.string().default("/etc/lion/adressen"),
   LION_BACKUP_ARBEIT: z.string().default("/var/lib/lion/backup"),
@@ -30,6 +31,7 @@ export type Konfiguration = {
   appsDaten: string;
   medien: string;
   hintergrund: string;
+  helferSocket: string;
   caddyApps: string;
   adressen: string;
   einrichtungsCode?: string;
@@ -55,6 +57,7 @@ export function ladeKonfiguration(umgebung: NodeJS.ProcessEnv = process.env): Ko
     appsDaten: k.LION_APPS_DATEN,
     medien: k.LION_MEDIEN,
     hintergrund: k.LION_HINTERGRUND,
+    helferSocket: k.LION_HELPER_SOCKET,
     caddyApps: k.LION_CADDY_APPS,
     adressen: k.LION_ADRESSEN,
     einrichtungsCode: k.LION_SETUP_CODE,
