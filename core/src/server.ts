@@ -1,0 +1,146 @@
+import cookie from "@fastify/cookie";
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import { z } from "zod";
+import { letzteEintraege, protokolliere } from "./audit.js";
+import type { Datenbank } from "./datenbank.js";
+import { hashePasswort, passwortRegelVerletzt, pruefePasswort } from "./passwort.js";
+import { AnmeldeSperre } from "./sperre.js";
+import {
+  beendeSitzung,
+  erstelleSitzung,
+  findeSitzung,
+  SITZUNG_COOKIE,
+  SITZUNG_DAUER_MS,
+  type SitzungsBenutzer,
+} from "./sitzungen.js";
+import { systemstatus, type Systemstatus } from "./system.js";
+
+export type ServerOptionen = {
+  db: Datenbank;
+  version: string;
+  /** Für Tests austauschbar. */
+  status?: () => Promise<Systemstatus>;
+  /** Cookie nur über HTTPS senden (im Betrieb immer true, hinter Caddy). */
+  sichereCookies?: boolean;
+  logger?: boolean;
+};
+
+declare module "fastify" {
+  interface FastifyRequest {
+    benutzer: SitzungsBenutzer | null;
+  }
+}
+
+/** Schutz gegen CSRF: Ändernde Anfragen müssen diesen Header tragen (Browser setzen ihn nicht von allein). */
+export const CSRF_HEADER = "x-lion-request";
+
+const Zugangsdaten = z.object({
+  name: z.string().trim().min(1).max(64),
+  passwort: z.string().min(1).max(256),
+});
+
+export function baueServer(opt: ServerOptionen): FastifyInstance {
+  const { db } = opt;
+  const status = opt.status ?? (() => systemstatus(["/", "/srv/lion"]));
+  const sperre = new AnmeldeSperre();
+  const app = Fastify({ logger: opt.logger ?? false, bodyLimit: 64 * 1024, trustProxy: "127.0.0.1" });
+
+  app.register(cookie);
+  app.decorateRequest("benutzer", null);
+
+  const cookieOptionen = {
+    httpOnly: true,
+    secure: opt.sichereCookies ?? true,
+    sameSite: "strict" as const,
+    path: "/",
+    maxAge: Math.floor(SITZUNG_DAUER_MS / 1000),
+  };
+
+  // Sitzung lesen + CSRF-Schutz für alle ändernden Anfragen.
+  app.addHook("onRequest", async (req, reply) => {
+    req.benutzer = findeSitzung(db, req.cookies[SITZUNG_COOKIE]);
+    const aendernd = !["GET", "HEAD", "OPTIONS"].includes(req.method);
+    if (aendernd && req.headers[CSRF_HEADER] !== "1") {
+      return reply.code(403).send({ fehler: "Anfrage ohne Lion-OS-Kennung abgelehnt." });
+    }
+  });
+
+  const benoetigtAnmeldung = async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!req.benutzer) return reply.code(401).send({ fehler: "Bitte zuerst anmelden." });
+  };
+
+  const eingerichtet = () => (db.prepare("SELECT COUNT(*) AS n FROM benutzer").get() as { n: number }).n > 0;
+
+  // ---- Öffentlich ---------------------------------------------------------
+  app.get("/api/health", async () => ({ ok: true, version: opt.version }));
+
+  app.get("/api/setup/status", async () => ({ eingerichtet: eingerichtet() }));
+
+  app.post("/api/setup", async (req, reply) => {
+    if (eingerichtet()) return reply.code(409).send({ fehler: "Lion OS ist bereits eingerichtet." });
+    const daten = Zugangsdaten.safeParse(req.body);
+    if (!daten.success) return reply.code(400).send({ fehler: "Name und Passwort angeben." });
+    const regel = passwortRegelVerletzt(daten.data.passwort);
+    if (regel) return reply.code(400).send({ fehler: regel });
+
+    const hash = await hashePasswort(daten.data.passwort);
+    // Erneut prüfen, damit zwei gleichzeitige Einrichtungen nicht beide gewinnen.
+    if (eingerichtet()) return reply.code(409).send({ fehler: "Lion OS ist bereits eingerichtet." });
+    const info = db
+      .prepare("INSERT INTO benutzer (name, passwort_hash, erstellt_am) VALUES (?, ?, ?)")
+      .run(daten.data.name, hash, new Date().toISOString());
+    protokolliere(db, { benutzer: daten.data.name, aktion: "einrichtung", ergebnis: "erfolg" });
+    const token = erstelleSitzung(db, Number(info.lastInsertRowid));
+    reply.setCookie(SITZUNG_COOKIE, token, cookieOptionen);
+    return reply.code(201).send({ name: daten.data.name });
+  });
+
+  app.post("/api/auth/login", async (req, reply) => {
+    const schluessel = req.ip;
+    const gesperrt = sperre.gesperrtFuer(schluessel);
+    if (gesperrt > 0) {
+      reply.header("retry-after", Math.ceil(gesperrt / 1000));
+      return reply.code(429).send({ fehler: `Zu viele Fehlversuche. Bitte in ${Math.ceil(gesperrt / 60000)} Minuten erneut versuchen.` });
+    }
+    const daten = Zugangsdaten.safeParse(req.body);
+    if (!daten.success) return reply.code(400).send({ fehler: "Name und Passwort angeben." });
+
+    const zeile = db.prepare("SELECT id, name, passwort_hash FROM benutzer WHERE name = ?").get(daten.data.name) as
+      | { id: number; name: string; passwort_hash: string }
+      | undefined;
+    // Auch bei unbekanntem Namen hashen, damit die Antwortzeit nichts verrät.
+    const gueltig = zeile
+      ? await pruefePasswort(daten.data.passwort, zeile.passwort_hash)
+      : (await hashePasswort(daten.data.passwort), false);
+
+    if (!zeile || !gueltig) {
+      sperre.fehlversuch(schluessel);
+      protokolliere(db, { benutzer: daten.data.name, aktion: "anmeldung", ergebnis: "abgelehnt", details: `ip=${req.ip}` });
+      return reply.code(401).send({ fehler: "Name oder Passwort falsch." });
+    }
+    sperre.erfolg(schluessel);
+    protokolliere(db, { benutzer: zeile.name, aktion: "anmeldung", ergebnis: "erfolg", details: `ip=${req.ip}` });
+    reply.setCookie(SITZUNG_COOKIE, erstelleSitzung(db, zeile.id), cookieOptionen);
+    return { name: zeile.name };
+  });
+
+  // ---- Angemeldet ---------------------------------------------------------
+  app.post("/api/auth/logout", { preHandler: benoetigtAnmeldung }, async (req, reply) => {
+    const token = req.cookies[SITZUNG_COOKIE];
+    if (token) beendeSitzung(db, token);
+    protokolliere(db, { benutzer: req.benutzer?.name, aktion: "abmeldung", ergebnis: "erfolg" });
+    reply.clearCookie(SITZUNG_COOKIE, { path: "/" });
+    return { ok: true };
+  });
+
+  app.get("/api/auth/me", { preHandler: benoetigtAnmeldung }, async (req) => ({ name: req.benutzer?.name }));
+
+  app.get("/api/system", { preHandler: benoetigtAnmeldung }, async () => status());
+
+  app.get("/api/audit", { preHandler: benoetigtAnmeldung }, async (req) => {
+    const anzahl = Number((req.query as { anzahl?: string }).anzahl ?? 100);
+    return { eintraege: letzteEintraege(db, Number.isFinite(anzahl) ? anzahl : 100) };
+  });
+
+  return app;
+}
