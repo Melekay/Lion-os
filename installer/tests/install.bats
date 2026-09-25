@@ -140,6 +140,25 @@ os_release() {
   [[ "$output" == *"chmod -R go-w $LION_ROOT/opt/lion/core"* ]]
 }
 
+@test "sichere_code_ordner: für alle beschreibbares /opt wird auf nur-root korrigiert" {
+  mkdir -p "$LION_ROOT/opt/lion"
+  chmod 0777 "$LION_ROOT/opt"
+  chmod 0775 "$LION_ROOT/opt/lion"
+  run sichere_code_ordner
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"für andere beschreibbar (777)"* ]]
+  [ "$(stat -c %a "$LION_ROOT/opt")" = "755" ]
+  [ "$(stat -c %a "$LION_ROOT/opt/lion")" = "755" ]
+}
+
+@test "sichere_code_ordner: korrekte Ordner bleiben unverändert und ohne Warnung" {
+  mkdir -p "$LION_ROOT/opt/lion"
+  chmod 0755 "$LION_ROOT/opt" "$LION_ROOT/opt/lion"
+  run sichere_code_ordner
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"beschreibbar"* ]]
+}
+
 @test "lion-core startet nach lion-helper" {
   run render_core_unit
   [[ "$output" == *"Wants=lion.service lion-helper.service"* ]]

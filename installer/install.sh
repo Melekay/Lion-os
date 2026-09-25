@@ -327,8 +327,29 @@ lege_benutzer_an() {
 }
 
 # lion-core läuft als Benutzer „lion“ und darf nur in seine eigenen Ordner schreiben.
+# lion-helper führt Code aus /opt/lion als root aus. Darf dort (oder in /opt) jemand anderes schreiben,
+# könnte er /opt/lion umbenennen und eigenen Code unterschieben. Deshalb: beide Ordner gehören root
+# und sind nur für root beschreibbar. Auf Debian ist das Standard; wir korrigieren abweichende Systeme.
+sichere_code_ordner() {
+  local ordner rechte besitzer
+  for ordner in "$(dirname "$(pfad_opt)")" "$(pfad_opt)"; do
+    [[ -d "$ordner" ]] || continue
+    rechte="$(stat -c '%a' "$ordner")"
+    besitzer="$(stat -c '%u' "$ordner")"
+    if [[ "$besitzer" != "0" ]]; then
+      warnung "$ordner gehört nicht root – wird korrigiert (lion-helper läuft als root)."
+      ausfuehren chown root:root "$ordner"
+    fi
+    if (( (8#$rechte & 8#022) != 0 )); then
+      warnung "$ordner ist für andere beschreibbar ($rechte) – wird auf nur-root korrigiert."
+      ausfuehren chmod go-w "$ordner"
+    fi
+  done
+}
+
 lege_ordner_an() {
   ausfuehren install -d -m 0755 "$(pfad_opt)" "$(pfad_stack)" "$(pfad_stack)/www" "$(pfad_srv)"
+  sichere_code_ordner
   ausfuehren install -d -m 0755 -o lion -g lion "$(pfad_stack)/apps" "$(pfad_srv)/apps"
   ausfuehren install -d -m 0750 -o lion -g lion "$(pfad_var)"
   # /etc/lion: lion darf lesen (Adressliste), lion.env selbst bleibt root vorbehalten (600).
@@ -542,6 +563,7 @@ installiere_core() {
   # (cp -a übernimmt sonst den Besitzer aus dem Repository, npm legt Dateien je nach Umgebung anders an.)
   ausfuehren chown -R root:root "$ziel"
   ausfuehren chmod -R go-w "$ziel"
+  sichere_code_ordner
   ok "lion-core gebaut ($ziel)."
 }
 
