@@ -43,6 +43,26 @@ export function zeitpunkt(iso: string): string {
   return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(d);
 }
 
+export function uhrzeit(d: Date): string {
+  return new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" }).format(d);
+}
+
+export function datumLang(d: Date): string {
+  return new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(d);
+}
+
+/** Verständlicher Name statt Pfad: „/“ ist das System, /srv/lion sind deine Daten. */
+export function speicherName(pfad: string): string {
+  if (pfad === "/") return "System";
+  if (pfad === "/srv/lion") return "Daten";
+  return pfad;
+}
+
+/** Zustand eines Datenträgers in einem Wort (für das Speicher-Widget). */
+export function speicherZustand(t: Ampel): string {
+  return t === "rot" ? "Fast voll" : t === "gelb" ? "Wird knapp" : "Gesund";
+}
+
 export function begruessung(stunde: number): string {
   if (stunde >= 5 && stunde < 11) return "Guten Morgen";
   if (stunde >= 11 && stunde < 18) return "Guten Tag";
@@ -61,6 +81,7 @@ export function kennzahlen(s: Systemstatus) {
   const ramBelegtMb = Math.max(0, s.ramGesamtMb - s.ramFreiMb);
   const lastProKern = s.cpuKerne > 0 ? s.last1 / s.cpuKerne : 0;
   return {
+    ramGesamtGb: s.ramGesamtMb / 1024,
     cpu: {
       anteil: anteil(lastProKern, 1),
       ton: ton(lastProKern, GRENZEN.lastProKern),
@@ -78,6 +99,8 @@ export function kennzahlen(s: Systemstatus) {
       const belegt = anteil(sp.gesamtGb - sp.freiGb, sp.gesamtGb);
       return {
         pfad: sp.pfad,
+        belegtGb: sp.gesamtGb - sp.freiGb,
+        gesamtGb: sp.gesamtGb,
         anteil: belegt,
         ton: ton(belegt, GRENZEN.speicher),
         wert: `${zahl(belegt * 100)} %`,

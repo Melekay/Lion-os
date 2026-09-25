@@ -26,7 +26,7 @@ test("Einrichtung mit echtem lion-core: falscher Code abgelehnt, richtiger Code 
   await page.getByLabel("Einrichtungscode").fill(" test-code-1234 ");
   await page.getByRole("button", { name: "Konto anlegen" }).click();
   await expect(page).toHaveURL(START);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("admin");
+  await expect(page.getByRole("banner")).toContainText("admin");
   await expect(page.getByRole("meter", { name: "Arbeitsspeicher belegt" })).toBeVisible();
 });
 

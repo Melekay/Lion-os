@@ -1,6 +1,6 @@
 # lion-ui
 
-Weboberfläche von Lion OS: Einrichtung, Anmeldung, Übersicht (Systemstatus), Apps und Protokoll.
+Weboberfläche von Lion OS – aufgebaut wie ein Schreibtisch (Vorbild ZimaOS): links Widgets, rechts deine Apps als Kacheln.
 Next.js 16 als **statischer Export** – Caddy liefert die Dateien aus, alle Daten kommen über `/api` von lion-core.
 Kein eigener Server, keine Cookies außer der Sitzung von lion-core, kein Tracking, keine Schriften aus dem Internet.
 
@@ -10,8 +10,8 @@ Kein eigener Server, keine Cookies außer der Sitzung von lion-core, kein Tracki
 |---|---|
 | `/einrichtung/` | Erster Admin mit Einrichtungscode (nur solange niemand eingerichtet ist) |
 | `/anmelden/` | Anmeldung |
-| `/` | Übersicht: Ampel mit Hinweisen, CPU, RAM, Speicher, Temperatur, installierte Apps |
-| `/apps/` | App-Katalog: installieren, öffnen, starten, stoppen, entfernen (mit Bestätigung, Daten bleiben) |
+| `/` | Startseite. **Links** Widgets: Uhr, System (CPU/RAM als Ringe, Ampel mit Hinweisen), Speicher, Netzwerk-Verlauf, letzte Aktivität. **Rechts** Suche und Kacheln: App Store, installierte Apps (Klick öffnet die App, Punkt zeigt den Status), Protokoll |
+| `/apps/` | App Store: installieren, öffnen, starten, stoppen, entfernen (mit Bestätigung, Daten bleiben) |
 | `/protokoll/` | Audit-Log von lion-core |
 
 ## Entwickeln
@@ -38,6 +38,7 @@ Die Browser-Tests laufen auf Desktop und Handy:
 
 ## Regeln
 
+- App-Symbole sind eigene Farbverläufe mit Piktogramm (`components/AppSymbol.tsx`) – keine fremden Markenlogos.
 - Nur `lib/api.ts` spricht mit lion-core. Ändernde Anfragen tragen immer `X-Lion-Request: 1`.
 - Typen in `lib/typen.ts` spiegeln lion-core – bei API-Änderungen beide Seiten anpassen.
 - Farben nur über die Tokens in `app/globals.css`; Kontrast mindestens WCAG AA; `prefers-reduced-motion` wird respektiert.
