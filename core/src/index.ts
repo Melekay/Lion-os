@@ -1,11 +1,26 @@
+import { AppVerwaltung } from "./apps.js";
+import { DateiCaddy } from "./caddy.js";
 import { oeffneDatenbank } from "./datenbank.js";
+import { ladeKatalog } from "./katalog.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { baueServer } from "./server.js";
+import { DockerComposeLaufzeit } from "./laufzeit.js";
 import { raeumeAbgelaufeneAuf } from "./sitzungen.js";
 
 const konfig = ladeKonfiguration();
 const db = oeffneDatenbank(konfig.datenbank);
-const server = baueServer({ db, version: konfig.version, logger: true });
+const katalog = await ladeKatalog(konfig.katalog);
+const apps = new AppVerwaltung({
+  db,
+  vorlagen: katalog.vorlagen,
+  laufzeit: new DockerComposeLaufzeit(),
+  caddy: new DateiCaddy(konfig.caddyApps, konfig.adressen),
+  zustandsOrdner: konfig.appsZustand,
+  datenOrdner: konfig.appsDaten,
+});
+const server = baueServer({ db, version: konfig.version, logger: true, apps });
+for (const f of katalog.fehler) server.log.warn(`App-Vorlage abgelehnt: ${f}`);
+server.log.info(`${katalog.vorlagen.length} App-Vorlagen geladen.`);
 
 setInterval(() => raeumeAbgelaufeneAuf(db), 60 * 60 * 1000).unref();
 

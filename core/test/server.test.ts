@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_VERSUCHE } from "../src/sperre.js";
-import { csrf, einrichten, PASSWORT, testServer } from "./helfer.js";
+import { csrf, einrichten, PASSWORT, testServer, testServerMitApps } from "./helfer.js";
 
 describe("Einrichtung", () => {
   it("ist anfangs nicht eingerichtet", async () => {
@@ -121,5 +121,33 @@ describe("Systemstatus und Audit-Log", () => {
     expect(eintraege.map((e) => `${e.aktion}:${e.ergebnis}`)).toEqual(["anmeldung:erfolg", "anmeldung:abgelehnt", "einrichtung:erfolg"]);
     expect(JSON.stringify(eintraege)).not.toContain(PASSWORT);
     expect(JSON.stringify(eintraege)).not.toContain("falsch-falsch-falsch");
+  });
+});
+
+describe("App-Routen", () => {
+  it("sind ohne Anmeldung gesperrt", async () => {
+    const { app } = await testServerMitApps();
+    expect((await app.inject({ url: "/api/apps" })).statusCode).toBe(401);
+    expect((await app.inject({ method: "POST", url: "/api/apps/uptime-kuma/installieren", headers: csrf })).statusCode).toBe(401);
+  });
+
+  it("listen den Katalog und starten Installationen im Hintergrund (202)", async () => {
+    const { app, apps } = await testServerMitApps();
+    const { cookie } = await einrichten(app);
+    const liste = await app.inject({ url: "/api/apps", headers: { cookie } });
+    expect(liste.json().apps.map((a: { id: string }) => a.id)).toContain("uptime-kuma");
+    const res = await app.inject({ method: "POST", url: "/api/apps/uptime-kuma/installieren", headers: { ...csrf, cookie } });
+    expect(res.statusCode).toBe(202);
+    await apps.warteAuf("uptime-kuma");
+  });
+
+  it("liefert 404 für unbekannte Apps und 400 ohne Bestätigung beim Entfernen", async () => {
+    const { app, apps } = await testServerMitApps();
+    const { cookie } = await einrichten(app);
+    expect((await app.inject({ method: "POST", url: "/api/apps/gibtsnicht/installieren", headers: { ...csrf, cookie } })).statusCode).toBe(404);
+    await app.inject({ method: "POST", url: "/api/apps/uptime-kuma/installieren", headers: { ...csrf, cookie } });
+    await apps.warteAuf("uptime-kuma");
+    const ohne = await app.inject({ method: "POST", url: "/api/apps/uptime-kuma/entfernen", headers: { ...csrf, cookie }, payload: {} });
+    expect(ohne.statusCode).toBe(400);
   });
 });

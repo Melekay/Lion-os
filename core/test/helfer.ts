@@ -1,4 +1,10 @@
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { AppVerwaltung } from "../src/apps.js";
 import { oeffneDatenbank } from "../src/datenbank.js";
+import { ladeKatalog } from "../src/katalog.js";
 import { baueServer, CSRF_HEADER } from "../src/server.js";
 import type { Systemstatus } from "../src/system.js";
 
@@ -29,4 +35,27 @@ export async function einrichten(app: ReturnType<typeof testServer>["app"], name
   const res = await app.inject({ method: "POST", url: "/api/setup", headers: csrf, payload: { name, passwort: PASSWORT } });
   const cookie = res.cookies.find((c) => c.name === "lion_sitzung");
   return { res, cookie: cookie ? `lion_sitzung=${cookie.value}` : "" };
+}
+
+/** Server mit App-Verwaltung, aber ohne echtes Docker und ohne echtes Caddy. */
+export async function testServerMitApps() {
+  const db = oeffneDatenbank(":memory:");
+  const { vorlagen } = await ladeKatalog(fileURLToPath(new URL("../../apps", import.meta.url)));
+  const basis = await mkdtemp(join(tmpdir(), "lion-srv-"));
+  const apps = new AppVerwaltung({
+    db,
+    vorlagen,
+    laufzeit: {
+      hochfahren: async () => {},
+      starten: async () => {},
+      stoppen: async () => {},
+      entfernen: async () => {},
+      status: async () => "laeuft",
+    },
+    caddy: { eintragSetzen: async () => {}, eintragEntfernen: async () => {}, adressen: async () => ["localhost"] },
+    zustandsOrdner: join(basis, "zustand"),
+    datenOrdner: join(basis, "daten"),
+  });
+  const app = baueServer({ db, version: "test", status: async () => BEISPIEL_STATUS, sichereCookies: false, apps });
+  return { app, db, apps };
 }

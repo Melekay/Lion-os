@@ -1,0 +1,13 @@
+id: uptime-kuma
+name: Uptime Kuma
+beschreibung: Überwacht Websites und Dienste und meldet sich, wenn etwas ausfällt.
+version: "1.23.16"
+kategorie: ueberwachung
+sicherheitsstufe: normal
+web:
+  dienst: app
+  port: 3001
+ressourcen:
+  ram_min_mb: 256
+hinweise:
+  - Beim ersten Öffnen legst du dein Uptime-Kuma-Konto an.

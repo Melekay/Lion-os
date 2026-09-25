@@ -57,6 +57,8 @@ jobs:
         run: |
           systemctl is-active --quiet lion.service
           test "$(sudo stat -c %a /etc/lion/lion.env)" = "600"
+          test -f /opt/lion/apps/uptime-kuma/lion-app.yaml
+          grep -qx localhost /etc/lion/adressen
           sudo docker inspect -f '{{.State.Running}}' lion-caddy | grep -q true
 
       - name: Zweiter Lauf ist idempotent (Geheimnis bleibt erhalten)

@@ -1,6 +1,6 @@
 # lion-core
 
-API von Lion OS: Einrichtung, Anmeldung, Systemstatus, Audit-Log – später App-Verwaltung und Backup.
+API von Lion OS: Einrichtung, Anmeldung, Systemstatus, Audit-Log und App-Verwaltung – später Backup.
 TypeScript, Fastify 5, SQLite über das in Node eingebaute `node:sqlite` (keine nativen Pakete). Node ≥ 22.13.
 
 ## Starten (Entwicklung)
@@ -33,6 +33,10 @@ Im Betrieb lauscht lion-core nur auf `127.0.0.1`; Caddy leitet von außen weiter
 | GET | `/api/auth/me` | ja | Aktueller Benutzer |
 | GET | `/api/system` | ja | CPU, RAM, Speicher, Temperatur + Ampel mit Hinweisen |
 | GET | `/api/audit?anzahl=100` | ja | Letzte Einträge des Audit-Logs |
+| GET | `/api/apps` | ja | Katalog mit Installationsstatus und HTTPS-Adressen |
+| POST | `/api/apps/:id/installieren` | ja | Installation im Hintergrund starten (202) |
+| POST | `/api/apps/:id/starten` · `/stoppen` | ja | App starten bzw. stoppen (202) |
+| POST | `/api/apps/:id/entfernen` | ja | Entfernen, Body `{bestaetigung: "<id>"}` – Daten bleiben erhalten (202) |
 
 Alle ändernden Anfragen (POST, PUT, DELETE) brauchen den Header `X-Lion-Request: 1` (CSRF-Schutz).
 
@@ -44,6 +48,31 @@ Alle ändernden Anfragen (POST, PUT, DELETE) brauchen den Header `X-Lion-Request
 - Gleiche Antwort für falsches Passwort und unbekannten Namen; auch bei unbekanntem Namen wird gehasht (keine Laufzeit-Unterschiede).
 - **Einrichtung** ist nur möglich, solange noch kein Benutzer existiert.
 - **Audit-Log** für Einrichtung, An- und Abmeldung inklusive Fehlversuchen.
+
+## Apps
+
+```
+Browser ──HTTPS──▶ Caddy (Host-Netz, Port 8100+n) ──▶ 127.0.0.1:18100+n ──▶ App-Container
+```
+
+- Vorlagen kommen aus `LION_KATALOG` (Standard `/opt/lion/apps`) und werden beim Start gegen die Sicherheitsregeln geprüft
+  (feste Image-Versionen, Port nur auf 127.0.0.1, Daten nur unter `${LION_APP_DATA}`, kein privileged, kein Docker-Socket …).
+  Abgelehnte Vorlagen erscheinen im Log, nicht im Katalog.
+- Installation: Zustand in `/var/lib/lion/apps/<id>` (`compose.yaml`, `.env` mit Rechten 600 und zufälligen Geheimnissen),
+  Daten in `/srv/lion/apps/<id>`, Caddy-Eintrag in `/opt/lion/stack/apps/<id>.caddy`, danach `caddy reload`.
+- Docker wird nur über `docker compose` mit festen Argumenten aufgerufen – ohne Shell, Projektnamen `lion-app-<id>`.
+- Pro App läuft immer nur eine Aktion; Fortschritt über `GET /api/apps` (`installiere` → `laeuft` oder `fehler` mit Meldung).
+- **Entfernen löscht keine Daten.** Der Datenordner bleibt, bis du ihn selbst löschst.
+
+| Variable | Standard |
+|---|---|
+| `LION_KATALOG` | `/opt/lion/apps` |
+| `LION_APPS_ZUSTAND` | `/var/lib/lion/apps` |
+| `LION_APPS_DATEN` | `/srv/lion/apps` |
+| `LION_CADDY_APPS` | `/opt/lion/stack/apps` |
+| `LION_ADRESSEN` | `/etc/lion/adressen` |
+
+Echter Docker-Test: `LION_DOCKER_TEST=1 npx vitest run test/docker.integration.test.ts`
 
 ## Systemstatus (Ampel)
 

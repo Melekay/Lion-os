@@ -1,0 +1,16 @@
+id: nextcloud
+name: Nextcloud
+beschreibung: Deine eigene Cloud für Dateien, Kalender und Kontakte – wie Dropbox, nur bei dir zu Hause.
+version: "31.0.9"
+kategorie: dateien
+sicherheitsstufe: sensibel
+web:
+  dienst: app
+  port: 80
+geheimnisse:
+  - POSTGRES_PASSWORD
+ressourcen:
+  ram_min_mb: 1024
+hinweise:
+  - Beim ersten Öffnen legst du das Admin-Konto an. Die Datenbank ist bereits eingerichtet.
+  - Die Einrichtung kann beim ersten Start einige Minuten dauern.
