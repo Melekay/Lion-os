@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { ApiFehler, lion } from "@/lib/api";
+import { gleicheFotoAb } from "@/lib/hintergrund";
 import { Hinweis, Knopf, Lader } from "./ui";
 
 type Sitzung = { name: string; boxName: string; setBoxName: (n: string) => void; abmelden: () => Promise<void> };
@@ -36,7 +37,10 @@ export function Geschuetzt({ children }: { children: React.ReactNode }) {
         // Der Name der Box ist nur Anzeige – fehlt er, bleibt „Lion OS“.
         const einstellungen = await lion.einstellungen().catch(() => null);
         if (!aktiv) return;
-        if (einstellungen) setBoxName(einstellungen.boxName);
+        if (einstellungen) {
+          setBoxName(einstellungen.boxName);
+          gleicheFotoAb(einstellungen.hintergrundFoto);
+        }
         setName(ich.name);
       } catch (e) {
         if (e instanceof ApiFehler && e.status === 401) return router.replace("/anmelden/");

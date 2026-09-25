@@ -18,20 +18,25 @@ function standardMeldung(status: number): string {
   if (status === 401) return "Bitte melde dich an.";
   if (status === 403) return "Das ist nicht erlaubt.";
   if (status === 404) return "Nicht gefunden.";
+  if (status === 413) return "Die Datei ist zu groß.";
+  if (status === 415) return "Dieses Dateiformat wird nicht unterstützt.";
   if (status === 429) return "Zu viele Versuche. Bitte warte kurz.";
   if (status >= 500) return "Lion OS hat einen Fehler gemeldet. Bitte versuche es gleich noch einmal.";
   return "Die Anfrage ist fehlgeschlagen.";
 }
 
-type Optionen = { methode?: "GET" | "POST"; daten?: unknown; signal?: AbortSignal };
+type Optionen = { methode?: "GET" | "POST"; daten?: unknown; signal?: AbortSignal; /** Rohdaten statt JSON, z. B. ein Foto */ roh?: Blob };
 
 /** Anfrage an lion-core (immer dieselbe Adresse wie die Oberfläche, Cookie wird mitgeschickt). */
 export async function api<T>(pfad: string, opt: Optionen = {}): Promise<T> {
-  const methode = opt.methode ?? (opt.daten === undefined ? "GET" : "POST");
+  const methode = opt.methode ?? (opt.daten === undefined && opt.roh === undefined ? "GET" : "POST");
   const headers: Record<string, string> = { accept: "application/json" };
   if (methode !== "GET") headers[CSRF_HEADER] = "1";
-  let body: string | undefined;
-  if (opt.daten !== undefined) {
+  let body: string | Blob | undefined;
+  if (opt.roh !== undefined) {
+    headers["content-type"] = opt.roh.type || "application/octet-stream";
+    body = opt.roh;
+  } else if (opt.daten !== undefined) {
     headers["content-type"] = "application/json";
     body = JSON.stringify(opt.daten);
   }
@@ -81,6 +86,8 @@ export const lion = {
   sitzungenAbmelden: (id?: number) => api<{ ok: true; abgemeldet: number }>("/api/auth/sitzungen/abmelden", { daten: id === undefined ? {} : { id } }),
   einstellungen: () => api<EinstellungenAntwort>("/api/einstellungen"),
   einstellungenSpeichern: (d: { boxName: string }) => api<{ boxName: string }>("/api/einstellungen", { daten: d }),
+  hintergrundHochladen: (foto: Blob) => api<{ hintergrundFoto: string }>("/api/hintergrund", { roh: foto }),
+  hintergrundEntfernen: () => api<{ ok: true }>("/api/hintergrund/entfernen", { methode: "POST" }),
   backup: () => api<BackupStatus>("/api/backup"),
   backupEinrichten: (d: { ziel: string; zeit: string }) => api<{ schluesselNeu: string | null; status: BackupStatus }>("/api/backup/einrichten", { daten: d }),
   backupPlan: (d: { zeit: string; aktiv: boolean }) => api<BackupStatus>("/api/backup/plan", { daten: d }),

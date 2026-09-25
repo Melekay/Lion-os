@@ -127,6 +127,8 @@ const AKTIONEN: Record<string, string> = {
   "app.starten": "App starten",
   "app.stoppen": "App stoppen",
   "app.entfernen": "App entfernen",
+  "hintergrund.hochladen": "Hintergrundfoto hochladen",
+  "hintergrund.entfernen": "Hintergrundfoto entfernen",
 };
 
 export function aktionText(aktion: string): string {

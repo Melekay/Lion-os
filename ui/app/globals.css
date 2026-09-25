@@ -55,6 +55,7 @@
     radial-gradient(60rem 45rem at 88% 28%, rgba(99, 102, 241, 0.65), transparent 60%),
     radial-gradient(50rem 40rem at 50% 105%, rgba(14, 165, 233, 0.5), transparent 60%),
     linear-gradient(135deg, #1a0b3d 0%, #2a0f4f 50%, #0f1c4d 100%);
+  --hg-foto: none; /* eigenes Foto: setzt die Oberfläche als url(...) */
   --hintergrund: var(--hg-sonnenuntergang);
 
   color-scheme: dark;
@@ -68,6 +69,10 @@
 }
 :root[data-hintergrund="nebel"] {
   --hintergrund: var(--hg-nebel);
+}
+/* Eigenes Foto mit leichtem Schleier, damit Schrift auf den Glas-Kacheln lesbar bleibt. */
+:root[data-hintergrund="foto"] {
+  --hintergrund: linear-gradient(rgba(6, 10, 28, 0.3), rgba(6, 10, 28, 0.55)), var(--hg-foto) center / cover no-repeat;
 }
 
 @theme inline {

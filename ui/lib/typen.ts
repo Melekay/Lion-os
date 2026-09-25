@@ -67,7 +67,13 @@ export type SitzungsAnsicht = {
   aktuell: boolean;
 };
 
-export type EinstellungenAntwort = { boxName: string; version: string; adressen: string[] };
+export type EinstellungenAntwort = {
+  boxName: string;
+  version: string;
+  adressen: string[];
+  /** Adresse des eigenen Hintergrundfotos, null ohne Foto */
+  hintergrundFoto?: string | null;
+};
 
 export type BackupLauf = {
   id: number;

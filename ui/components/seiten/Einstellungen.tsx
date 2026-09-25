@@ -1,12 +1,13 @@
 "use client";
 
-import { Check, ExternalLink, KeyRound, LogOut, Monitor, Palette, RefreshCw, Server, Smartphone, Users } from "lucide-react";
-import { useId, useState, useSyncExternalStore } from "react";
+import { Check, ExternalLink, ImagePlus, KeyRound, LogOut, Monitor, Palette, RefreshCw, Server, Smartphone, Trash2, Users } from "lucide-react";
+import { useId, useRef, useState, useSyncExternalStore } from "react";
 import { useAbfrage } from "@/lib/abfrage";
 import { lion } from "@/lib/api";
 import { zeitpunkt } from "@/lib/format";
 import { geraetText, istMobil } from "@/lib/geraet";
-import { abonniereHintergrund, aktuellerHintergrund, HINTERGRUENDE, setzeHintergrund } from "@/lib/hintergrund";
+import { MAX_BREITE, MAX_HOEHE, fotoVorbereiten } from "@/lib/bild";
+import { abonniereHintergrund, aktuellerHintergrund, gleicheFotoAb, HINTERGRUENDE, istFotoAdresse, setzeFotoAdresse, setzeHintergrund } from "@/lib/hintergrund";
 import { MIN_LAENGE, passwortPruefen } from "@/lib/passwort";
 import type { EinstellungenAntwort, SitzungsAnsicht } from "@/lib/typen";
 import { useSitzung } from "../Sitzung";
@@ -242,12 +243,69 @@ function Geraete({ sitzungen, neuLaden }: { sitzungen: SitzungsAnsicht[] | undef
   );
 }
 
-function HintergrundWahl() {
+function FotoKachel({ foto, aktiv, onWaehlen }: { foto: string; aktiv: boolean; onWaehlen: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={aktiv}
+      onClick={onWaehlen}
+      className={`group overflow-hidden rounded-feld border-2 text-left transition-colors ${aktiv ? "border-gold" : "border-transparent hover:border-linie-hell"}`}
+    >
+      <span className="block h-16 bg-cover bg-center" style={{ backgroundImage: `url("${foto}")` }} aria-hidden="true" />
+      <span className="flex items-center justify-between gap-2 bg-flaeche-2 px-2.5 py-2 text-xs font-semibold">
+        Eigenes Foto
+        {aktiv && <Check className="h-4 w-4 text-akzent" aria-hidden="true" />}
+      </span>
+    </button>
+  );
+}
+
+function HintergrundWahl({ foto, onFotoGeaendert }: { foto: string | null; onFotoGeaendert: () => void }) {
   // Beim Vorab-Rendern gibt es kein localStorage – dann ist noch nichts ausgewählt.
   const aktiv = useSyncExternalStore(abonniereHintergrund, aktuellerHintergrund, () => null);
+  const [laedt, setLaedt] = useState<"hoch" | "weg" | null>(null);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [entfernenFragen, setEntfernenFragen] = useState(false);
+  const dateiRef = useRef<HTMLInputElement>(null);
+  const eingabeId = useId();
+  const fotoAdresse = istFotoAdresse(foto) ? foto : null;
+
+  async function hochladen(datei: File | undefined) {
+    if (!datei) return;
+    setFehler(null);
+    setLaedt("hoch");
+    try {
+      const jpeg = await fotoVorbereiten(datei);
+      const { hintergrundFoto } = await lion.hintergrundHochladen(jpeg);
+      setzeFotoAdresse(hintergrundFoto);
+      setzeHintergrund("foto");
+      onFotoGeaendert();
+    } catch (e) {
+      setFehler(e instanceof Error ? e.message : "Das Foto konnte nicht hochgeladen werden.");
+    } finally {
+      setLaedt(null);
+      if (dateiRef.current) dateiRef.current.value = "";
+    }
+  }
+
+  async function entfernen() {
+    setFehler(null);
+    setLaedt("weg");
+    try {
+      await lion.hintergrundEntfernen();
+      gleicheFotoAb(null);
+      setEntfernenFragen(false);
+      onFotoGeaendert();
+    } catch (e) {
+      setFehler(e instanceof Error ? e.message : "Das Foto konnte nicht entfernt werden.");
+    } finally {
+      setLaedt(null);
+    }
+  }
+
   return (
-    <Abschnitt titel="Hintergrund" icon={Palette} text="Gilt nur für diesen Browser – jedes Gerät kann seinen eigenen haben.">
-      <div role="group" aria-label="Hintergrund wählen" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <Abschnitt titel="Hintergrund" icon={Palette} text="Die Wahl gilt nur für diesen Browser. Ein eigenes Foto liegt auf der Box und steht allen Geräten zur Auswahl.">
+      <div role="group" aria-label="Hintergrund wählen" className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {HINTERGRUENDE.map((h) => (
           <button
             key={h.id}
@@ -266,7 +324,51 @@ function HintergrundWahl() {
             </span>
           </button>
         ))}
+        {fotoAdresse && <FotoKachel foto={fotoAdresse} aktiv={aktiv === "foto"} onWaehlen={() => setzeHintergrund("foto")} />}
       </div>
+
+      <input
+        ref={dateiRef}
+        id={eingabeId}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={(e) => void hochladen(e.target.files?.[0])}
+        disabled={laedt !== null}
+      />
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <label
+          htmlFor={eingabeId}
+          className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-feld border border-linie-hell bg-flaeche-2 px-4 text-sm font-semibold transition-colors hover:border-gold/60 hover:bg-flaeche-3 ${laedt ? "pointer-events-none opacity-50" : ""}`}
+        >
+          <ImagePlus className="h-4 w-4" aria-hidden="true" /> {fotoAdresse ? "Anderes Foto hochladen" : "Eigenes Foto hochladen"}
+        </label>
+        {fotoAdresse && !entfernenFragen && (
+          <Knopf art="leise" onClick={() => setEntfernenFragen(true)} disabled={laedt !== null}>
+            <Trash2 className="h-4 w-4" aria-hidden="true" /> Foto entfernen
+          </Knopf>
+        )}
+      </div>
+      {entfernenFragen && (
+        <div role="group" aria-label="Foto wirklich entfernen?" className="mt-3 flex flex-wrap items-center gap-2 rounded-feld border border-rot/40 bg-rot-flaeche p-3 text-sm">
+          <span className="mr-auto">Foto von der Box löschen? Alle Geräte, die es nutzen, zeigen dann wieder einen Farbverlauf.</span>
+          <Knopf art="gefahr" laedt={laedt === "weg"} onClick={() => void entfernen()}>
+            Endgültig entfernen
+          </Knopf>
+          <Knopf art="rahmen" onClick={() => setEntfernenFragen(false)}>
+            Abbrechen
+          </Knopf>
+        </div>
+      )}
+      {laedt === "hoch" && <p role="status" className="mt-3 text-sm text-gedaempft">Foto wird verkleinert und hochgeladen …</p>}
+      {fehler && (
+        <div className="mt-3">
+          <Hinweis ton="rot">{fehler}</Hinweis>
+        </div>
+      )}
+      <p className="mt-3 text-xs text-gedaempft">
+        Das Foto wird vorher auf höchstens {MAX_BREITE} × {MAX_HOEHE} Pixel verkleinert. Dabei fallen Metadaten wie der GPS-Standort weg.
+      </p>
     </Abschnitt>
   );
 }
@@ -282,7 +384,7 @@ export function Einstellungen() {
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <div className="space-y-5">
           {einstellungen.daten ? <DieseBox e={einstellungen.daten} /> : !einstellungen.fehler && <Lader text="Lade Einstellungen …" />}
-          <HintergrundWahl />
+          <HintergrundWahl foto={einstellungen.daten?.hintergrundFoto ?? null} onFotoGeaendert={() => void einstellungen.neuLaden()} />
           <Abschnitt titel="Updates" icon={RefreshCw}>
             <p className="text-sm leading-relaxed text-text/90">
               Updates per Knopfdruck kommen in einer späteren Version. Bis dahin auf dem Server im Lion-OS-Ordner:

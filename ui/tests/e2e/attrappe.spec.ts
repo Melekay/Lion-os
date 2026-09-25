@@ -419,6 +419,51 @@ test.describe("Einstellungen", () => {
     await expect(page.locator("html")).toHaveAttribute("data-hintergrund", "ozean");
   });
 
+  test("eigenes Foto: wird als JPEG hochgeladen, ist sofort Hintergrund und lässt sich nach Rückfrage entfernen", async ({ page }) => {
+    await page.goto("/einstellungen/");
+    // 40 × 30 Pixel PNG, im Browser erzeugt – die Oberfläche muss daraus ein JPEG machen.
+    const png = await page.evaluate(async () => {
+      const c = document.createElement("canvas");
+      c.width = 40;
+      c.height = 30;
+      const ctx = c.getContext("2d")!;
+      ctx.fillStyle = "#ff6a00";
+      ctx.fillRect(0, 0, 40, 30);
+      const blob = await new Promise<Blob>((r) => c.toBlob((b) => r(b!), "image/png"));
+      return Array.from(new Uint8Array(await blob.arrayBuffer()));
+    });
+    await page.getByLabel("Eigenes Foto hochladen").setInputFiles({ name: "urlaub.png", mimeType: "image/png", buffer: Buffer.from(png) });
+
+    const wahl = page.getByRole("group", { name: "Hintergrund wählen" });
+    await expect(wahl.getByRole("button", { name: "Eigenes Foto" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("html")).toHaveAttribute("data-hintergrund", "foto");
+    expect(await page.evaluate(() => document.documentElement.style.getPropertyValue("--hg-foto"))).toBe('url("/api/hintergrund?v=1")');
+    const hoch = api.anfragen.find((a) => a.pfad === "/api/hintergrund" && a.methode === "POST");
+    expect(hoch?.csrf).toBe("1");
+    expect(api.foto?.subarray(0, 3).equals(Buffer.from([0xff, 0xd8, 0xff]))).toBe(true);
+    await barrierefrei(page);
+
+    // Andere Seite, neu geladen: Foto bleibt Hintergrund.
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-hintergrund", "foto");
+
+    await page.goto("/einstellungen/");
+    await page.getByRole("button", { name: "Foto entfernen" }).click();
+    await expect(page.getByRole("group", { name: "Foto wirklich entfernen?" })).toBeVisible();
+    expect(api.foto).not.toBeNull();
+    await page.getByRole("button", { name: "Endgültig entfernen" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-hintergrund", "sonnenuntergang");
+    await expect(wahl.getByRole("button", { name: "Eigenes Foto" })).toHaveCount(0);
+    expect(api.foto).toBeNull();
+  });
+
+  test("keine Bilddatei: verständliche Meldung, nichts wird hochgeladen", async ({ page }) => {
+    await page.goto("/einstellungen/");
+    await page.getByLabel("Eigenes Foto hochladen").setInputFiles({ name: "notiz.txt", mimeType: "text/plain", buffer: Buffer.from("hallo") });
+    await expect(page.getByText("Bitte eine Bilddatei wählen")).toBeVisible();
+    expect(api.anfragen.some((a) => a.pfad === "/api/hintergrund")).toBe(false);
+  });
+
   test("Name der Box speichern: erscheint in der Kopfzeile; Fehler werden angezeigt", async ({ page }) => {
     await page.goto("/einstellungen/");
     const feld = page.getByLabel("Name der Box");

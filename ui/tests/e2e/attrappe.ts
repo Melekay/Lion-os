@@ -73,6 +73,8 @@ export class Attrappe {
   ];
 
   ressourcen: Record<string, { cpuProzent: number; ramMb: number }> = {};
+  foto: Buffer | null = null;
+  fotoVersion = 0;
 
   appProtokolle: Record<string, string[]> = {
     filebrowser: ["app-1  | 2026/09/25 10:00:00 User 'admin' initialized with randomly generated password: Xy7-geheim"],
@@ -144,7 +146,8 @@ export class Attrappe {
     const url = new URL(req.url());
     const pfad = url.pathname;
     const methode = req.method();
-    const body = req.postData() ? JSON.parse(req.postData() as string) : undefined;
+    const json = (req.headers()["content-type"] ?? "").includes("application/json");
+    const body = json && req.postData() ? JSON.parse(req.postData() as string) : undefined;
     this.anfragen.push({ methode, pfad, csrf: req.headers()["x-lion-request"], body });
 
     if (methode !== "GET" && req.headers()["x-lion-request"] !== "1") return this.json(route, 403, { fehler: "CSRF" });
@@ -174,7 +177,7 @@ export class Attrappe {
       return this.json(route, 200, this.system);
     }
     if (pfad === "/api/einstellungen" && methode === "GET") {
-      return this.json(route, 200, { boxName: this.boxName, version: "0.1.0-dev", adressen: ["localhost", "box.local", "192.168.1.20"] });
+      return this.json(route, 200, { boxName: this.boxName, version: "0.1.0-dev", adressen: ["localhost", "box.local", "192.168.1.20"], hintergrundFoto: this.foto ? `/api/hintergrund?v=${this.fotoVersion}` : null });
     }
     if (pfad === "/api/einstellungen") {
       const name = String(body?.boxName ?? "").trim();
@@ -232,6 +235,20 @@ export class Attrappe {
       return this.json(route, 200, { apps: this.apps });
     }
 
+    if (pfad === "/api/hintergrund" && methode === "POST") {
+      const daten = req.postDataBuffer();
+      if (!daten || daten[0] !== 0xff || daten[1] !== 0xd8 || daten[2] !== 0xff) return this.json(route, 415, { fehler: "Bitte ein Foto als JPEG senden." });
+      this.foto = daten;
+      this.fotoVersion++;
+      return this.json(route, 200, { hintergrundFoto: `/api/hintergrund?v=${this.fotoVersion}` });
+    }
+    if (pfad === "/api/hintergrund") {
+      return this.foto ? route.fulfill({ status: 200, contentType: "image/jpeg", body: this.foto }) : this.json(route, 404, { fehler: "Kein Foto." });
+    }
+    if (pfad === "/api/hintergrund/entfernen") {
+      this.foto = null;
+      return this.json(route, 200, { ok: true });
+    }
     if (pfad === "/api/apps/ressourcen") return this.json(route, 200, { apps: this.ressourcen });
     if (pfad === "/api/apps/jellyfin/logo") {
       return route.fulfill({ status: 200, contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10" fill="#7c3aed"/></svg>' });

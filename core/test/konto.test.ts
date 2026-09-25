@@ -139,7 +139,7 @@ describe("Einstellungen", () => {
     });
     const { cookie } = await einrichten(app);
     const res = await app.inject({ url: "/api/einstellungen", headers: { cookie } });
-    expect(res.json()).toEqual({ boxName: "Lion OS", version: "9.9.9", adressen: ["localhost", "192.168.1.20"] });
+    expect(res.json()).toEqual({ boxName: "Lion OS", version: "9.9.9", adressen: ["localhost", "192.168.1.20"], hintergrundFoto: null });
   });
 
   it("speichert den Namen der Box (getrimmt) und protokolliert es", async () => {
